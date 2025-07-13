@@ -7,7 +7,7 @@ from io import BytesIO
 # CORE LOGIC - ROBUST AND SIMPLE
 # ================================
 
-def detect_metric_columns(sheet, stop_at="baseline"):
+def detect_metric_columns(sheet, stop_at="Demon-strated Rate at 100%"):
     """
     Robust metric column detection with fallback
     """
