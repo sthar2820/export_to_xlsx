@@ -21,36 +21,14 @@ st.set_page_config(
 # ================================
 
 def detect_metric_columns(sheet, header_row=3, stop_at="baseline"):
-    """
-    Enhanced metric column detection with better error handling
-    """
     metric_cols = []
-    headers = {}
-    
-    # Search multiple rows for headers (not just row 3)
-    for search_row in range(1, min(6, sheet.max_row + 1)):
-        found_headers = 0
-        temp_cols = []
-        temp_headers = {}
-        
-        for col in range(3, min(sheet.max_column + 1, 15)):  # Reasonable limit
-            cell = sheet.cell(row=search_row, column=col).value
-            if cell and isinstance(cell, str) and len(cell.strip()) > 2:
-                temp_headers[col] = cell.strip()
-                temp_cols.append(col)
-                found_headers += 1
-                
-                # Check for stop condition
-                if stop_at.lower() in cell.lower():
-                    temp_cols.append(col)  # Include the baseline column
-                    break
-        
-        # Use the row with most headers found
-        if found_headers > len(headers):
-            headers = temp_headers
-            metric_cols = temp_cols
-    
-    return metric_cols, headers
+    for col in range(4, sheet.max_column + 1):  # Start from Column D
+        val = sheet.cell(row=header_row, column=col).value
+        if val and isinstance(val, str):
+            metric_cols.append(col)
+            if stop_at.lower() in val.lower():
+                break  # Stop including after 'Baseline'
+    return metric_cols
 
 def detect_categories(sheet):
     """
@@ -126,58 +104,42 @@ def find_subcategory_column(sheet, categories):
     
     return best_col
 
-def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col):
+def extract_smitch_data(sheet, categories, metric_cols, headers):
     """
-    Enhanced data extraction with better validation
+    Robust data extractor: uses fixed subcategory column (3) and improves boundary logic.
     """
     extracted = []
     
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 20, sheet.max_row)
-        
-        # Extract data within category boundaries
+        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else sheet.max_row
+
         for row in range(start_row, end_row + 1):
-            subcat_cell = sheet.cell(row=row, column=subcategory_col).value
-            
-            if not subcat_cell:
+            subcat_cell = sheet.cell(row=row, column=3).value  # COLUMN C — fixed
+            if not subcat_cell or len(str(subcat_cell).strip()) < 2:
                 continue
-                
+            
             subcat = str(subcat_cell).strip()
-            
-            # Skip very short or empty subcategories
-            if len(subcat) < 2:
-                continue
-            
-            # Check if this row has any numeric data
-            has_data = False
-            row_data = []
-            
+
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
-                if isinstance(val, (int, float)) and val is not None:
-                    has_data = True
-                    header_clean = headers.get(col, f"Column_{col}")
-                    if '\n' in header_clean:
-                        header_clean = header_clean.split('\n')[0]
-                    header_clean = header_clean[:30]
-                    
-                    row_data.append({
+                if isinstance(val, (int, float)):
+                    header = headers.get(col, sheet.cell(row=3, column=col).value)
+                    if header:
+                        header_clean = str(header).split('\n')[0].strip()[:30]
+                    else:
+                        header_clean = f"Column_{col}"
+
+                    extracted.append({
                         'Category': current['name'],
                         'Subcategory': subcat,
                         'Metric': header_clean,
                         'Value': float(val),
-                        'Row': row,
-                        'Column': col,
-                        'Excel_Cell': f'{chr(64 + col)}{row}'
                     })
-            
-            # Only add if we found data
-            if has_data:
-                extracted.extend(row_data)
     
     return extracted
+
 
 # ================================
 # STREAMLIT UI
