@@ -2,37 +2,60 @@ import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
 from io import BytesIO
-import zipfile
-from datetime import datetime
 
 # ================================
-# PAGE CONFIGURATION
+# CORE LOGIC - ROBUST AND SIMPLE
 # ================================
 
-st.set_page_config(
-    page_title="SMITCH Excel Extractor",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# ================================
-# IMPROVED DETECTION FUNCTIONS
-# ================================
-
-def detect_metric_columns(sheet, header_row=3, stop_at="baseline"):
+def detect_metric_columns(sheet, stop_at="baseline"):
+    """
+    Robust metric column detection with fallback
+    """
     metric_cols = []
-    for col in range(4, sheet.max_column + 1):  # Start from Column D
-        val = sheet.cell(row=header_row, column=col).value
-        if val and isinstance(val, str):
-            metric_cols.append(col)
-            if stop_at.lower() in val.lower():
-                break  # Stop including after 'Baseline'
-    return metric_cols
+    headers = {}
+    
+    try:
+        # Search rows 1-5 for headers
+        for search_row in range(1, min(6, sheet.max_row + 1)):
+            temp_cols = []
+            temp_headers = {}
+            
+            for col in range(3, min(sheet.max_column + 1, 20)):  # Reasonable limit
+                try:
+                    cell = sheet.cell(row=search_row, column=col).value
+                    if cell and isinstance(cell, str) and len(cell.strip()) > 1:
+                        header_clean = cell.strip()
+                        temp_headers[col] = header_clean
+                        temp_cols.append(col)
+                        
+                        # Check for stop condition
+                        if stop_at.lower() in header_clean.lower():
+                            temp_cols.append(col)  # Include the stop column
+                            break
+                except:
+                    continue
+            
+            # Use the row with most headers
+            if len(temp_headers) > len(headers):
+                headers = temp_headers
+                metric_cols = temp_cols
+        
+        # Fallback if no headers found
+        if not metric_cols:
+            metric_cols = list(range(3, min(8, sheet.max_column + 1)))  # Default C-G
+            for col in metric_cols:
+                headers[col] = f"Column_{chr(64 + col)}"
+        
+    except Exception as e:
+        # Emergency fallback
+        metric_cols = [3, 4, 5, 6]
+        headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
+    
+    return metric_cols, headers
 
 def detect_categories(sheet):
     """
-    Enhanced category detection with better multi-line handling
+    Robust category detection with fallback
     """
     categories = []
     category_map = {
@@ -44,330 +67,264 @@ def detect_categories(sheet):
         'H': 'Headcount'
     }
     
-    # Check multiple columns for categories (not just column 2)
-    for col in range(1, min(4, sheet.max_column + 1)):
-        for row in range(1, sheet.max_row + 1):
-            val = sheet.cell(row=row, column=col).value
-            if val:
-                # Handle multi-line cells
-                text = str(val).strip()
-                lines = text.split('\n') if '\n' in text else [text]
-                
-                for line in lines:
-                    line_clean = line.strip().upper()
-                    if line_clean in category_map:
-                        # Check if we already found this category
-                        existing = [c for c in categories if c['letter'] == line_clean]
-                        if not existing:
-                            categories.append({
-                                'row': row,
-                                'column': col,
-                                'letter': line_clean,
-                                'name': category_map[line_clean]
-                            })
-                        break
+    try:
+        # Check first 3 columns for categories
+        for col in range(1, min(4, sheet.max_column + 1)):
+            for row in range(1, min(sheet.max_row + 1, 50)):  # Limit search
+                try:
+                    val = sheet.cell(row=row, column=col).value
+                    if not val:
+                        continue
+                        
+                    # Handle different cell formats
+                    text = str(val).strip()
+                    
+                    # Split on newlines if present
+                    lines = text.split('\n') if '\n' in text else [text]
+                    
+                    for line in lines:
+                        line_clean = line.strip().upper()
+                        if len(line_clean) == 1 and line_clean in category_map:
+                            # Check if already found
+                            if not any(c['letter'] == line_clean for c in categories):
+                                categories.append({
+                                    'row': row,
+                                    'column': col,
+                                    'letter': line_clean,
+                                    'name': category_map[line_clean]
+                                })
+                            break
+                except:
+                    continue
+        
+        # Sort by row number
+        categories.sort(key=lambda x: x['row'])
+        
+    except Exception as e:
+        st.error(f"Error detecting categories: {e}")
+        categories = []
     
-    # Sort by row number
-    categories.sort(key=lambda x: x['row'])
     return categories
 
 def find_subcategory_column(sheet, categories):
     """
-    Auto-detect which column contains subcategories
+    Find subcategory column with robust fallback
     """
-    if not categories:
-        return 3  # Default fallback
-    
-    # Check columns near the category column
-    category_col = categories[0]['column']
-    candidate_cols = [category_col + 1, category_col + 2, category_col - 1]
-    
-    best_col = category_col + 1  # Default
-    max_subcats = 0
-    
-    for col in candidate_cols:
-        if col < 1 or col > sheet.max_column:
-            continue
-            
-        subcat_count = 0
-        for row in range(1, min(30, sheet.max_row + 1)):
-            cell = sheet.cell(row=row, column=col).value
-            if cell and isinstance(cell, str) and len(cell.strip()) >= 2:
-                # Check if it looks like a subcategory
-                text = cell.strip().lower()
-                if any(word in text for word in ['total', 'bracket', 'bushing', 'spacer', 'welding', 'recliner']):
-                    subcat_count += 1
+    try:
+        if not categories:
+            return 3  # Default fallback
         
-        if subcat_count > max_subcats:
-            max_subcats = subcat_count
-            best_col = col
-    
-    return best_col
+        # Start with the most common pattern
+        category_col = categories[0]['column']
+        candidates = [category_col + 1, category_col + 2, 3, 2]  # Common patterns
+        
+        best_col = category_col + 1  # Default
+        max_text_cells = 0
+        
+        for col in candidates:
+            if col < 1 or col > sheet.max_column:
+                continue
+            
+            text_cells = 0
+            try:
+                for row in range(1, min(30, sheet.max_row + 1)):
+                    cell = sheet.cell(row=row, column=col).value
+                    if cell and isinstance(cell, str) and len(cell.strip()) >= 2:
+                        text_cells += 1
+                
+                if text_cells > max_text_cells:
+                    max_text_cells = text_cells
+                    best_col = col
+            except:
+                continue
+        
+        return best_col
+        
+    except Exception as e:
+        return 3  # Safe fallback
 
-def extract_smitch_data(sheet, categories, metric_cols, headers):
+def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col):
     """
-    Robust data extractor: uses fixed subcategory column (3) and improves boundary logic.
+    Robust data extraction with comprehensive error handling
     """
     extracted = []
     
-    for i in range(len(categories)):
-        current = categories[i]
-        start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else sheet.max_row
-
-        for row in range(start_row, end_row + 1):
-            subcat_cell = sheet.cell(row=row, column=3).value  # COLUMN C — fixed
-            if not subcat_cell or len(str(subcat_cell).strip()) < 2:
-                continue
-            
-            subcat = str(subcat_cell).strip()
-
-            for col in metric_cols:
-                val = sheet.cell(row=row, column=col).value
-                if isinstance(val, (int, float)):
-                    header = headers.get(col, sheet.cell(row=3, column=col).value)
-                    if header:
-                        header_clean = str(header).split('\n')[0].strip()[:30]
-                    else:
-                        header_clean = f"Column_{col}"
-
-                    extracted.append({
-                        'Category': current['name'],
-                        'Subcategory': subcat,
-                        'Metric': header_clean,
-                        'Value': float(val),
-                    })
+    try:
+        if not categories:
+            st.warning("No categories found")
+            return []
+        
+        for i in range(len(categories)):
+            try:
+                current = categories[i]
+                start_row = current['row']
+                
+                # Calculate end row safely
+                if i + 1 < len(categories):
+                    end_row = categories[i + 1]['row'] - 1
+                else:
+                    end_row = min(start_row + 25, sheet.max_row)
+                
+                # Extract data within boundaries
+                for row in range(start_row, end_row + 1):
+                    try:
+                        # Get subcategory
+                        subcat_cell = sheet.cell(row=row, column=subcategory_col).value
+                        if not subcat_cell:
+                            continue
+                        
+                        subcat = str(subcat_cell).strip()
+                        if len(subcat) < 2:
+                            continue
+                        
+                        # Extract numeric data
+                        for col in metric_cols:
+                            try:
+                                val = sheet.cell(row=row, column=col).value
+                                if isinstance(val, (int, float)) and val is not None:
+                                    # Get header safely
+                                    header = headers.get(col, f"Column_{chr(64 + col)}")
+                                    if isinstance(header, str) and '\n' in header:
+                                        header = header.split('\n')[0]
+                                    header = str(header)[:30]  # Truncate long headers
+                                    
+                                    extracted.append({
+                                        'Category': current['name'],
+                                        'Subcategory': subcat,
+                                        'Metric': header,
+                                        'Value': float(val)
+                                    })
+                            except Exception as col_error:
+                                continue  # Skip problematic cells
+                                
+                    except Exception as row_error:
+                        continue  # Skip problematic rows
+                        
+            except Exception as cat_error:
+                continue  # Skip problematic categories
+        
+    except Exception as e:
+        st.error(f"Error during extraction: {e}")
     
     return extracted
 
-
 # ================================
-# STREAMLIT UI
+# STREAMLIT APP - SIMPLE AND ROBUST
 # ================================
 
-st.title("📊 SMITCH Excel Extractor App")
-st.markdown("### Extract and standardize SMITCH manufacturing data from Excel files")
+st.title("📊 SMITCH Excel Extractor")
+st.write("Upload SMITCH Excel files to extract structured data")
 
-# Sidebar for configuration
-with st.sidebar:
-    st.header("⚙️ Configuration")
-    
-    stop_at_baseline = st.checkbox("Stop at 'Baseline' column", value=True)
-    custom_stop_word = st.text_input("Custom stop word:", value="baseline" if stop_at_baseline else "")
-    
-    include_debug_info = st.checkbox("Include debug columns (Row, Column, Excel_Cell)", value=False)
-    
-    st.header("📋 Instructions")
-    st.markdown("""
-    1. **Upload** one or more SMITCH Excel files
-    2. **Review** the extraction results  
-    3. **Download** individual files or bulk ZIP
-    4. **Check** the summary statistics
-    """)
-
-# File upload section
 uploaded_files = st.file_uploader(
-    "Upload SMITCH Excel Files", 
+    "Choose Excel files", 
     type=["xlsm", "xlsx"], 
-    accept_multiple_files=True,
-    help="Select one or more SMITCH Excel files to process"
+    accept_multiple_files=True
 )
 
 if uploaded_files:
-    st.success(f"📁 {len(uploaded_files)} file(s) uploaded successfully!")
+    st.write(f"Processing {len(uploaded_files)} file(s)...")
     
-    # Processing options
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.subheader("🔄 Processing Results")
-    with col2:
-        if len(uploaded_files) > 1:
-            bulk_download = st.button("📦 Download All as ZIP", key="bulk_download")
-        else:
-            bulk_download = False
-    
-    # Store results for bulk download
-    all_results = {}
-    total_records = 0
-    processing_summary = []
-    
-    # Process each file
-    for idx, file in enumerate(uploaded_files):
-        with st.expander(f"📂 {file.name}", expanded=len(uploaded_files) <= 3):
-            try:
-                # Load workbook
-                with st.spinner(f"Processing {file.name}..."):
-                    wb = load_workbook(file, data_only=True)
-                    ws = wb.active
-                
-                # Auto-detection
-                metric_columns, headers = detect_metric_columns(ws, stop_at=custom_stop_word if custom_stop_word else "baseline")
+    for file in uploaded_files:
+        st.subheader(f"📂 {file.name}")
+        
+        try:
+            # Load file with error handling
+            wb = load_workbook(file, data_only=True)
+            ws = wb.active
+            
+            st.write(f"✅ File loaded: {ws.max_row} rows × {ws.max_column} columns")
+            
+            # Step 1: Detect structure
+            with st.spinner("Detecting file structure..."):
+                metric_columns, headers = detect_metric_columns(ws)
                 category_rows = detect_categories(ws)
                 subcategory_col = find_subcategory_column(ws, category_rows)
-                
-                # Show detection results
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Categories Found", len(category_rows))
-                with col2:
-                    st.metric("Metric Columns", len(metric_columns))
-                with col3:
-                    st.metric("Subcategory Column", chr(64 + subcategory_col))
-                
-                # Extract data
+            
+            # Show detection results
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Categories", len(category_rows))
+            with col2:
+                st.metric("Metric Columns", len(metric_columns))
+            with col3:
+                st.metric("Subcategory Col", chr(64 + subcategory_col))
+            
+            # Step 2: Extract data
+            with st.spinner("Extracting data..."):
                 data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col)
-                
-                if data:
-                    # Create DataFrame
-                    df = pd.DataFrame(data)
-                    
-                    # Select columns based on user preference
-                    if include_debug_info:
-                        display_columns = ['Category', 'Subcategory', 'Metric', 'Value', 'Row', 'Column', 'Excel_Cell']
-                    else:
-                        display_columns = ['Category', 'Subcategory', 'Metric', 'Value']
-                    
-                    df_display = df[display_columns]
-                    
-                    # Show summary
-                    st.success(f"✅ Extracted {len(df)} records")
-                    
-                    # Summary statistics
-                    summary_col1, summary_col2 = st.columns(2)
-                    with summary_col1:
-                        st.write("**Categories:**")
-                        category_summary = df['Category'].value_counts()
-                        for cat, count in category_summary.items():
-                            st.write(f"• {cat}: {count} records")
-                    
-                    with summary_col2:
-                        st.write("**Metrics:**")
-                        metric_summary = df['Metric'].value_counts()
-                        for metric, count in metric_summary.head(5).items():
-                            st.write(f"• {metric}: {count} records")
-                    
-                    # Show data preview
-                    st.write("**Data Preview:**")
-                    st.dataframe(df_display.head(10), use_container_width=True)
-                    
-                    # Individual file download
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df_display.to_excel(writer, index=False, sheet_name='Extracted_Data')
-                        
-                        # Add summary sheet
-                        summary_data = {
-                            'Metric': ['Total Records', 'Categories', 'Subcategories', 'Metrics'],
-                            'Value': [len(df), df['Category'].nunique(), df['Subcategory'].nunique(), df['Metric'].nunique()]
-                        }
-                        pd.DataFrame(summary_data).to_excel(writer, index=False, sheet_name='Summary')
-                    
-                    output.seek(0)
-                    
-                    st.download_button(
-                        label="📥 Download Excel",
-                        data=output,
-                        file_name=f"{file.name.split('.')[0]}_extracted.xlsx",
-                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        key=f"download_{idx}"
-                    )
-                    
-                    # Store for bulk download
-                    all_results[file.name] = df_display
-                    total_records += len(df)
-                    
-                    processing_summary.append({
-                        'File': file.name,
-                        'Status': 'Success',
-                        'Records': len(df),
-                        'Categories': df['Category'].nunique(),
-                        'Subcategories': df['Subcategory'].nunique()
-                    })
-                
-                else:
-                    st.error("❌ No data extracted - check file structure")
-                    processing_summary.append({
-                        'File': file.name,
-                        'Status': 'Failed - No Data',
-                        'Records': 0,
-                        'Categories': 0,
-                        'Subcategories': 0
-                    })
-                
-            except Exception as e:
-                st.error(f"❌ Failed to process {file.name}: {str(e)}")
-                processing_summary.append({
-                    'File': file.name,
-                    'Status': f'Error: {str(e)[:50]}...',
-                    'Records': 0,
-                    'Categories': 0,
-                    'Subcategories': 0
-                })
-    
-    # Bulk download functionality
-    if bulk_download and all_results:
-        with st.spinner("Creating ZIP file..."):
-            zip_buffer = BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                for filename, df in all_results.items():
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df.to_excel(writer, index=False, sheet_name='Extracted_Data')
-                    output.seek(0)
-                    
-                    excel_filename = f"{filename.split('.')[0]}_extracted.xlsx"
-                    zip_file.writestr(excel_filename, output.getvalue())
-                
-                # Add summary file
-                summary_df = pd.DataFrame(processing_summary)
-                summary_output = BytesIO()
-                with pd.ExcelWriter(summary_output, engine='xlsxwriter') as writer:
-                    summary_df.to_excel(writer, index=False, sheet_name='Processing_Summary')
-                summary_output.seek(0)
-                zip_file.writestr('Processing_Summary.xlsx', summary_output.getvalue())
             
-            zip_buffer.seek(0)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            st.download_button(
-                label="📦 Download ZIP with All Files",
-                data=zip_buffer,
-                file_name=f"SMITCH_Extracted_{timestamp}.zip",
-                mime="application/zip"
-            )
-    
-    # Final summary
-    if processing_summary:
-        st.subheader("📊 Processing Summary")
-        summary_df = pd.DataFrame(processing_summary)
-        st.dataframe(summary_df, use_container_width=True)
+            if data:
+                df = pd.DataFrame(data)
+                st.success(f"✅ Extracted {len(df)} records")
+                
+                # Show summary
+                st.write("**Categories found:**")
+                for cat, count in df['Category'].value_counts().items():
+                    st.write(f"• {cat}: {count} records")
+                
+                # Show preview
+                st.write("**Data preview:**")
+                st.dataframe(df.head(10))
+                
+                # Download button
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Extracted')
+                output.seek(0)
+                
+                st.download_button(
+                    label="📥 Download Excel",
+                    data=output,
+                    file_name=f"{file.name.split('.')[0]}_extracted.xlsx",
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+            else:
+                st.warning("⚠️ No data extracted from this file")
+                
+                # Debug info
+                with st.expander("Debug Information"):
+                    st.write(f"Categories detected: {len(category_rows)}")
+                    if category_rows:
+                        for cat in category_rows:
+                            st.write(f"• {cat['name']} at row {cat['row']}")
+                    
+                    st.write(f"Metric columns: {metric_columns}")
+                    st.write(f"Subcategory column: {subcategory_col}")
+                    
+                    # Show sample data from subcategory column
+                    st.write("Sample from subcategory column:")
+                    for row in range(1, min(10, ws.max_row + 1)):
+                        cell = ws.cell(row=row, column=subcategory_col).value
+                        if cell:
+                            st.write(f"Row {row}: {cell}")
         
-        # Overall stats
-        successful_files = len([s for s in processing_summary if s['Status'] == 'Success'])
-        st.info(f"📈 Successfully processed {successful_files}/{len(uploaded_files)} files with {total_records} total records")
+        except Exception as e:
+            st.error(f"❌ Failed to process {file.name}")
+            st.error(f"Error: {str(e)}")
+            
+            # Debug information
+            with st.expander("Error Details"):
+                st.code(str(e))
+                st.write("This might be due to:")
+                st.write("• Unexpected file structure")
+                st.write("• Corrupted file")
+                st.write("• Different SMITCH template version")
+        
+        st.divider()
 
 else:
-    # Instructions when no files uploaded
-    st.info("👆 Upload SMITCH Excel files to get started")
+    st.info("👆 Upload Excel files to get started")
     
-    with st.expander("ℹ️ What this app does"):
-        st.markdown("""
-        This app automatically extracts and standardizes SMITCH manufacturing data:
+    with st.expander("How it works"):
+        st.write("""
+        1. **Auto-detects** SMITCH categories (S, M, I, T, C, H)
+        2. **Finds** subcategory and data columns
+        3. **Extracts** structured data
+        4. **Exports** to Excel format
         
-        **🔍 Auto-Detection:**
-        - Finds SMITCH categories (S, M, I, T, C, H) in any column
-        - Detects subcategory column automatically  
-        - Stops at 'Baseline' column or custom word
-        
-        **📊 Data Structure:**
-        - Category: Sales Price, Material, Investment, etc.
-        - Subcategory: Total, Recliner Bushing Adap, etc.
-        - Metric: Column headers (Total Score, PLEX Standard, etc.)
+        **Output format:**
+        - Category: Sales Price, Material, etc.
+        - Subcategory: Total, Recliner Bushing, etc.  
+        - Metric: Column headers
         - Value: Numeric data
-        
-        **💾 Output Options:**
-        - Individual Excel files per input
-        - Bulk ZIP download for multiple files
-        - Processing summary report
         """)
