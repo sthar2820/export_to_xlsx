@@ -242,10 +242,9 @@ import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
 from io import BytesIO
-import re
 
 # ================================
-# CORE LOGIC - ROBUST AND SIMPLE
+# CONSTANTS
 # ================================
 
 KNOWN_PLANTS = {
@@ -253,6 +252,10 @@ KNOWN_PLANTS = {
     "Olofstrom", "Rotenburg", "Celaya", "Dickson", "Goshen",
     "Kalamazoo", "Saltillo", "Valley City", "Wellington"
 }
+
+# ================================
+# DETECTION FUNCTIONS
+# ================================
 
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
@@ -272,23 +275,19 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
             temp_stop_col = None
 
             for col in range(3, min(sheet.max_column + 1, 20)):
-                try:
-                    cell = sheet.cell(row=search_row, column=col).value
-                    if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                        header_clean = cell.strip()
-                        temp_headers[col] = header_clean
-                        temp_cols.append(col)
+                cell = sheet.cell(row=search_row, column=col).value
+                if cell and isinstance(cell, str) and len(cell.strip()) > 1:
+                    header_clean = cell.strip()
+                    temp_headers[col] = header_clean
+                    temp_cols.append(col)
 
-                        header_lower = header_clean.lower()
-                        for stop_keyword in stop_at_keywords:
-                            if stop_keyword in header_lower:
-                                temp_stop_col = stop_keyword
-                                break
-
-                        if temp_stop_col:
+                    header_lower = header_clean.lower()
+                    for stop_keyword in stop_at_keywords:
+                        if stop_keyword in header_lower:
+                            temp_stop_col = stop_keyword
                             break
-                except:
-                    continue
+                    if temp_stop_col:
+                        break
 
             if temp_stop_col or len(temp_headers) > len(headers):
                 headers = temp_headers
@@ -314,67 +313,50 @@ def detect_categories(sheet):
         'S': 'Sales Price', 'M': 'Material', 'I': 'Investment',
         'T': 'Tooling', 'C': 'Cycle Times', 'H': 'Headcount'
     }
-
     try:
         for col in range(1, min(4, sheet.max_column + 1)):
             for row in range(1, min(sheet.max_row + 1, 50)):
-                try:
-                    val = sheet.cell(row=row, column=col).value
-                    if not val:
-                        continue
-                    text = str(val).strip()
-                    lines = text.split('\n') if '\n' in text else [text]
-                    for line in lines:
-                        line_clean = line.strip().upper()
-                        if len(line_clean) == 1 and line_clean in category_map:
-                            if not any(c['letter'] == line_clean for c in categories):
-                                categories.append({
-                                    'row': row, 'column': col,
-                                    'letter': line_clean,
-                                    'name': category_map[line_clean]
-                                })
-                            break
-                except:
+                val = sheet.cell(row=row, column=col).value
+                if not val:
                     continue
+                text = str(val).strip()
+                lines = text.split('\n') if '\n' in text else [text]
+                for line in lines:
+                    line_clean = line.strip().upper()
+                    if len(line_clean) == 1 and line_clean in category_map:
+                        if not any(c['letter'] == line_clean for c in categories):
+                            categories.append({
+                                'row': row, 'column': col,
+                                'letter': line_clean,
+                                'name': category_map[line_clean]
+                            })
+                        break
         categories.sort(key=lambda x: x['row'])
     except Exception as e:
         st.error(f"Error detecting categories: {e}")
         categories = []
-
     return categories
 
 def detect_plant_and_part(sheet, category_rows):
-    plant = None
-    part = None
-    plant_row = None
-
     for row in range(1, sheet.max_row + 1):
         for col in range(1, sheet.max_column + 1):
             val = sheet.cell(row=row, column=col).value
             if val and isinstance(val, str):
                 text = val.strip()
-                for known_plant in KNOWN_PLANTS:
-                    if known_plant.lower() in text.lower():
-                        plant = known_plant
+                for plant in KNOWN_PLANTS:
+                    if plant.lower() in text.lower():
                         plant_row = row
                         plant_col = col
-                        break
-            if plant:
-                break
-        if plant:
-            break
-
-    if plant and category_rows:
-        first_cat_row = category_rows[0]['row']
-        for row in range(plant_row + 1, first_cat_row):
-            val = sheet.cell(row=row, column=plant_col).value
-            if val and isinstance(val, str):
-                clean_val = val.strip()
-                if re.search(r'[A-Za-z]', clean_val) and re.search(r'[0-9]', clean_val):
-                    part = clean_val
-                    break
-
-    return plant, part
+                        plant_name = plant
+                        first_cat_row = min(cat['row'] for cat in category_rows) if category_rows else plant_row + 10
+                        for r in range(plant_row + 1, first_cat_row):
+                            part_val = sheet.cell(row=r, column=plant_col).value
+                            if part_val and isinstance(part_val, str):
+                                part_val = part_val.strip()
+                                if any(char.isdigit() for char in part_val) and len(part_val) >= 5:
+                                    return plant_name, part_val
+                        return plant_name, None
+    return None, None
 
 def find_subcategory_column(sheet, categories):
     try:
@@ -384,7 +366,6 @@ def find_subcategory_column(sheet, categories):
         candidates = [category_col + 1, category_col + 2, 3, 2]
         best_col = category_col + 1
         max_text_cells = 0
-
         for col in candidates:
             if col < 1 or col > sheet.max_column:
                 continue
@@ -440,7 +421,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 # STREAMLIT APP
 # ================================
 
-st.title("📊 SMITCH Excel Extractor")
+st.title("\ud83d\udcca SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
 
 uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], accept_multiple_files=True)
@@ -448,11 +429,12 @@ uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], a
 if uploaded_files:
     st.write(f"Processing {len(uploaded_files)} file(s)...")
     for file in uploaded_files:
-        st.subheader(f"📂 {file.name}")
+        st.subheader(f"\ud83d\udcc2 {file.name}")
         try:
             wb = load_workbook(file, data_only=True)
             ws = wb.active
-            st.write(f"File loaded: {ws.max_row} rows × {ws.max_column} columns")
+            st.write(f"File loaded: {ws.max_row} rows \u00d7 {ws.max_column} columns")
+
             with st.spinner("Detecting file structure..."):
                 metric_columns, headers, stop_column_found = detect_metric_columns(ws)
                 category_rows = detect_categories(ws)
@@ -475,12 +457,6 @@ if uploaded_files:
             if data:
                 df = pd.DataFrame(data)
                 st.success(f"Extracted {len(df)} records")
-
-                st.write("**Categories found:**")
-                for cat, count in df['Category'].value_counts().items():
-                    st.write(f"• {cat}: {count} records")
-
-                st.write("**Data preview:**")
                 st.dataframe(df.head(10))
 
                 output = BytesIO()
@@ -489,7 +465,7 @@ if uploaded_files:
                 output.seek(0)
 
                 st.download_button(
-                    label="📥 Download Excel",
+                    label="\ud83d\udcc5 Download Excel",
                     data=output,
                     file_name=f"{file.name.split('.')[0]}_extracted.xlsx",
                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -497,9 +473,7 @@ if uploaded_files:
             else:
                 st.warning(" No data extracted from this file")
         except Exception as e:
-            st.error(f" Failed to process {file.name}")
+            st.error(f"\u274c Failed to process {file.name}")
             st.error(f"Error: {str(e)}")
 else:
-    st.info("👆 Upload Excel files to get started")
-
-
+    st.info("\ud83d\udc46 Upload Excel files to get started")
