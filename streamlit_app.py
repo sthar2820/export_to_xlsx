@@ -519,7 +519,7 @@ if uploaded_files:
         try:
             wb = load_workbook(file, data_only=True)
             ws = wb.active
-            st.write(f"✅ File loaded: {ws.max_row} rows × {ws.max_column} columns")
+            st.write(f"File loaded: {ws.max_row} rows × {ws.max_column} columns")
             with st.spinner("Detecting file structure..."):
                 metric_columns, headers, stop_column_found = detect_metric_columns(ws)
                 category_rows = detect_categories(ws)
@@ -541,7 +541,7 @@ if uploaded_files:
 
             if data:
                 df = pd.DataFrame(data)
-                st.success(f"✅ Extracted {len(df)} records")
+                st.success(f"Extracted {len(df)} records")
 
                 st.write("**Categories found:**")
                 for cat, count in df['Category'].value_counts().items():
@@ -562,9 +562,9 @@ if uploaded_files:
                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 )
             else:
-                st.warning("⚠️ No data extracted from this file")
+                st.warning(" No data extracted from this file")
         except Exception as e:
-            st.error(f"❌ Failed to process {file.name}")
+            st.error(f" Failed to process {file.name}")
             st.error(f"Error: {str(e)}")
 else:
     st.info("👆 Upload Excel files to get started")
