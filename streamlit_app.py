@@ -349,7 +349,6 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
         stop_at_keywords = [
             "demon-strated rate at 100%", "demonstrated rate at 100%",
             "demon-strated rate", "demonstrated rate",
-            "baseline", "actual", "final", "target", "current"
         ]
 
     metric_cols = []
