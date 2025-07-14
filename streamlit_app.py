@@ -50,24 +50,24 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 # except:
                 #     continue
             if cell:
-    try:
-        cell_str = str(cell).strip()
-        if len(cell_str) > 1:
-            header_clean = cell_str
-            temp_headers[col] = header_clean
-            temp_cols.append(col)
+              try:
+                cell_str = str(cell).strip()
+                if len(cell_str) > 1:
+                header_clean = cell_str
+                temp_headers[col] = header_clean
+            t    emp_cols.append(col)
 
             # Stop keyword detection
-            header_lower = header_clean.lower()
-            for stop_keyword in stop_at_keywords:
+                header_lower = header_clean.lower()
+                for stop_keyword in stop_at_keywords:
                 if stop_keyword in header_lower:
                     temp_stop_col = stop_keyword
                     break
 
-            if temp_stop_col:
+                if temp_stop_col:
                 break
-    except:
-        continue
+            except:
+                continue
 
 
             if temp_stop_col or len(temp_headers) > len(headers):
