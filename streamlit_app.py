@@ -34,21 +34,41 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
             for col in range(3, min(sheet.max_column + 1, 20)):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
-                    if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                        header_clean = cell.strip()
-                        temp_headers[col] = header_clean
-                        temp_cols.append(col)
+                #     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
+                #         header_clean = cell.strip()
+                #         temp_headers[col] = header_clean
+                #         temp_cols.append(col)
 
-                        header_lower = header_clean.lower()
-                        for stop_keyword in stop_at_keywords:
-                            if stop_keyword in header_lower:
-                                temp_stop_col = stop_keyword
-                                break
+                #         header_lower = header_clean.lower()
+                #         for stop_keyword in stop_at_keywords:
+                #             if stop_keyword in header_lower:
+                #                 temp_stop_col = stop_keyword
+                #                 break
 
-                        if temp_stop_col:
-                            break
-                except:
-                    continue
+                #         if temp_stop_col:
+                #             break
+                # except:
+                #     continue
+            if cell:
+    try:
+        cell_str = str(cell).strip()
+        if len(cell_str) > 1:
+            header_clean = cell_str
+            temp_headers[col] = header_clean
+            temp_cols.append(col)
+
+            # Stop keyword detection
+            header_lower = header_clean.lower()
+            for stop_keyword in stop_at_keywords:
+                if stop_keyword in header_lower:
+                    temp_stop_col = stop_keyword
+                    break
+
+            if temp_stop_col:
+                break
+    except:
+        continue
+
 
             if temp_stop_col or len(temp_headers) > len(headers):
                 headers = temp_headers
