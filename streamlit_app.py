@@ -91,7 +91,7 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell:
-                        header_clean = str(cell).strip()
+                        header_clean = ' '.join(str(cell).split())
                         if len(header_clean) > 1:
                             header_lower = header_clean.lower()
 
