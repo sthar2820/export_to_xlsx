@@ -414,7 +414,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             if len(subcat) < 2:
                 continue
             date_match = date_pattern.search(subcat)
-            date_str = date_match.group(1) if date_match else ""
+            date_str = date_match.group(0) if date_match else ""
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
                 if isinstance(val, (int, float)) and val is not None:
