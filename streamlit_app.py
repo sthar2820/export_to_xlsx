@@ -357,16 +357,25 @@ def detect_plant(sheet):
                         return plant, row
     return None, None
 
-def detect_part_name(sheet, plant_row, smitch_row):
-    for row in range(plant_row + 1, smitch_row):
-        for col in range(1, sheet.max_column + 1):
-            cell = sheet.cell(row=row, column=col).value
-            if cell:
-                cell_str = str(cell).strip()
-                if len(cell_str) >= 4 and not cell_str.isdigit():
-                    if any(char.isalpha() for char in cell_str):
-                        return cell_str
+def detect_part_name(sheet, category_rows):
+    """
+    Looks for part name in Column B, between top and the first SMITCH row (usually right above 'S')
+    """
+    try:
+        if not category_rows:
+            return None
+        smitch_start_row = category_rows[0]['row']
+        for row in range(smitch_start_row - 1, 0, -1):  # Search upward from first SMITCH category
+            val = sheet.cell(row=row, column=2).value  # Column B = 2
+            if val and isinstance(val, str):
+                val = val.strip()
+                # Heuristic: at least 4 chars, includes letters, not just a single capital letter
+                if len(val) > 3 and any(char.isalpha() for char in val) and val.upper() not in ['S', 'M', 'I', 'T', 'C', 'H']:
+                    return val
+    except:
+        pass
     return None
+
 
 def find_subcategory_column(sheet, categories):
     try:
