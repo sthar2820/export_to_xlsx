@@ -374,9 +374,10 @@ def detect_part_name(sheet, categories):
 def extract_date(text):
     if not text:
         return None
-    match = re.search(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
+    # Matches MM/YY, MM/YYYY, MM/DD/YYYY even if inside text
+    match = re.search(r"(\d{1,2}[/-]\d{2,4}([/-]\d{2,4})?)", text)
     if match:
-        return match.group(0)
+        return match.group(1)
     return None
 
 
