@@ -36,7 +36,7 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                         header_clean = ' '.join(str(cell).split())
+                        header_clean = ' '.join(str(cell).split())
                         temp_headers[col] = header_clean
                         temp_cols.append(col)
 
