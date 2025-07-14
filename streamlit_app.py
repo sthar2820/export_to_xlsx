@@ -419,9 +419,12 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             if not subcat_cell:
                 continue
             subcat = str(subcat_cell).strip()
+              
             if len(subcat) < 2:
                 continue
             date_str = extract_date(subcat)
+            st.write(f"Row {row} Subcategory: '{subcat}' → Extracted Date: '{date_str}'")
+              
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
                 if isinstance(val, (int, float)) and val is not None:
