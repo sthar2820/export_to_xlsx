@@ -398,7 +398,7 @@ def find_subcategory_column(sheet, categories):
 
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
-    date_pattern = re.compile(r"\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{4}|\d{1,2}/\d{2}")  
+    date_pattern = re.compile(r"\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{4}|\d{1,2}/\d{2}\b")  
     if not categories:
         st.warning("No categories found")
         return []
@@ -414,7 +414,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             if len(subcat) < 2:
                 continue
             date_match = date_pattern.search(subcat)
-            date_str = date_match.group(1) if date_match else None
+            date_str = date_match.group(1) if date_match else ""
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
                 if isinstance(val, (int, float)) and val is not None:
