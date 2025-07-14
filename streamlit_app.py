@@ -247,6 +247,7 @@ from openpyxl import load_workbook
 from io import BytesIO
 from datetime import datetime
 import re
+from dateutil import parser
 
 
 KNOWN_PLANTS = {
@@ -374,12 +375,17 @@ def detect_part_name(sheet, categories):
 def extract_date(text):
     if not text:
         return None
-    # Matches MM/YY, MM/YYYY, MM/DD/YYYY even if inside text
-    match = re.search(r"(\d{1,2}[/-]\d{2,4}([/-]\d{2,4})?)", text)
-    if match:
-        return match.group(1)
-    return None
 
+    match = re.search(r"(\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?)", text)
+    if match:
+        raw_date = match.group(1)
+        try:
+            # Use dateutil to flexibly parse date formats like 01/25, 3/2024, 12/21/2025
+            parsed = parser.parse(raw_date, dayfirst=False, yearfirst=False, fuzzy=True)
+            return parsed.strftime("%Y-%m-%d")
+        except:
+            return raw_date  # fallback to raw if parsing fails
+    return None
 
 def find_subcategory_column(sheet, categories):
     try:
