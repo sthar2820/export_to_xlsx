@@ -426,40 +426,33 @@ def find_subcategory_column(sheet, categories):
 
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
-    # date_pattern = re.compile(r"\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{4}|\d{1,2}/\d{2}\b")  
     if not categories:
         st.warning("No categories found")
         return []
+
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
         end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+
         for row in range(start_row, end_row + 1):
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
             if not subcat_cell:
                 continue
+
             subcat = str(subcat_cell).strip()
-              
-            # if len(subcat) < 2:
-            #     continue
-            # date_str = extract_date(subcat)
+            date_str = extract_date(subcat)
 
-            # Try to extract date from subcategory cell if text contains it
-date_str = None
-if subcat:
-    date_str = extract_date(subcat)
+            # If no date yet, scan other cells in the same row to find a date
+            if not date_str:
+                for col_check in range(1, sheet.max_column + 1):
+                    val = sheet.cell(row=row, column=col_check).value
+                    if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
+                        alt_date = extract_date(val)
+                        if alt_date:
+                            date_str = alt_date
+                            break
 
-# If no date yet, scan other cells in the same row to find a date
-if not date_str:
-    for col_check in range(1, sheet.max_column + 1):
-        val = sheet.cell(row=row, column=col_check).value
-        if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
-            alt_date = extract_date(val)
-            if alt_date:
-                date_str = alt_date
-                break
-
-              
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
                 if isinstance(val, (int, float)) and val is not None:
@@ -470,7 +463,7 @@ if not date_str:
                     entry = {
                         'Category': current['name'],
                         'Subcategory': subcat,
-                        'Date':date_str,
+                        'Date': date_str,
                         'Metric': header,
                         'Value': float(val)
                     }
@@ -479,7 +472,9 @@ if not date_str:
                     if part_name:
                         entry['Part Name'] = part_name
                     extracted.append(entry)
+
     return extracted
+
 
 
 st.title("📊 SMITCH Excel Extractor")
