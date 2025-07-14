@@ -247,9 +247,6 @@ from openpyxl import load_workbook
 from io import BytesIO
 import re
 
-# ================================
-# CORE LOGIC - ROBUST AND SIMPLE
-# ================================
 
 KNOWN_PLANTS = {
     "Bielsko Biala", "Birmingham", "Blatna", "Einbeck", "Forsheda",
@@ -437,9 +434,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     extracted.append(entry)
     return extracted
 
-# ================================
-# STREAMLIT APP
-# ================================
 
 st.title("📊 SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
@@ -503,7 +497,7 @@ if uploaded_files:
             st.error(f" Failed to process {file.name}")
             st.error(f"Error: {str(e)}")
 else:
-    st.info("👆 Upload Excel files to get started")
+    st.info(" Upload Excel files to get started")
 
 
                        
