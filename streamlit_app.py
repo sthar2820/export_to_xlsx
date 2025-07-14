@@ -15,61 +15,6 @@ KNOWN_PLANTS = {
     "Kalamazoo", "Saltillo", "Valley City", "Wellington"
 }
 
-# def detect_metric_columns(sheet, stop_at_keywords=None):
-#     if stop_at_keywords is None:
-#         stop_at_keywords = [
-#             "demon-strated rate at 100%", "demonstrated rate at 100%",
-#             "demon-strated rate", "demonstrated rate",
-#         ]
-
-#     metric_cols = []
-#     headers = {}
-#     stop_column_found = None
-
-#     try:
-#         for search_row in range(1, min(6, sheet.max_row + 1)):
-#             temp_cols = []
-#             temp_headers = {}
-#             temp_stop_col = None
-
-#             for col in range(3, min(sheet.max_column + 1, 20)):
-#                 try:
-#                     cell = sheet.cell(row=search_row, column=col).value
-#                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-#                         header_clean = cell.strip()
-#                         temp_headers[col] = header_clean
-#                         temp_cols.append(col)
-
-#                         header_lower = header_clean.lower()
-#                         for stop_keyword in stop_at_keywords:
-#                             if stop_keyword in header_lower:
-#                                 temp_stop_col = stop_keyword
-#                                 break
-
-#                         if temp_stop_col:
-#                             break
-#                 except:
-#                     continue
-      
-#             if temp_stop_col or len(temp_headers) > len(headers):
-#                 headers = temp_headers
-#                 metric_cols = temp_cols
-#                 if temp_stop_col:
-#                     stop_column_found = temp_stop_col
-#                     break
-
-#         if not metric_cols:
-#             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
-#             for col in metric_cols:
-#                 headers[col] = f"Column_{chr(64 + col)}"
-
-#     except:
-#         metric_cols = [3, 4, 5, 6]
-#         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
-
-#     return metric_cols, headers, stop_column_found
-import re
-
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
@@ -85,51 +30,106 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
         for search_row in range(1, min(6, sheet.max_row + 1)):
             temp_cols = []
             temp_headers = {}
-            stop_detected = False
+            temp_stop_col = None
 
-            for col in range(3, min(sheet.max_column + 1, 50)):  # Wider search window
+            for col in range(3, min(sheet.max_column + 1, 20)):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
-                    if cell:
-                        header_clean = ' '.join(str(cell).split())
-                        if len(header_clean) > 1:
-                            header_lower = header_clean.lower()
+                    if cell and isinstance(cell, str) and len(cell.strip()) > 1:
+                         header_clean = ' '.join(str(cell).split())
+                        temp_headers[col] = header_clean
+                        temp_cols.append(col)
 
-                            # Always keep the column
-                            temp_cols.append(col)
-                            temp_headers[col] = header_clean
-
-                            # Check if this header matches any stop keyword (partial match)
-                            for stop_keyword in stop_at_keywords:
-                                if stop_keyword in header_lower:
-                                    stop_column_found = header_clean
-                                    stop_detected = True
-                                    break
-
-                            if stop_detected:
+                        header_lower = header_clean.lower()
+                        for stop_keyword in stop_at_keywords:
+                            if stop_keyword in header_lower:
+                                temp_stop_col = stop_keyword
                                 break
+
+                        if temp_stop_col:
+                            break
                 except:
                     continue
-
-            if stop_detected or len(temp_headers) > len(headers):
+      
+            if temp_stop_col or len(temp_headers) > len(headers):
                 headers = temp_headers
                 metric_cols = temp_cols
+                if temp_stop_col:
+                    stop_column_found = temp_stop_col
+                    break
 
-            if stop_detected:
-                break
-
-        # Fallback if nothing valid detected
         if not metric_cols:
             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
             for col in metric_cols:
                 headers[col] = f"Column_{chr(64 + col)}"
 
     except:
-        # Emergency fallback
         metric_cols = [3, 4, 5, 6]
         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
 
     return metric_cols, headers, stop_column_found
+# import re
+
+# def detect_metric_columns(sheet, stop_at_keywords=None):
+#     if stop_at_keywords is None:
+#         stop_at_keywords = [
+#             "demon-strated rate at 100%", "demonstrated rate at 100%",
+#             "demon-strated rate", "demonstrated rate",
+#         ]
+
+#     metric_cols = []
+#     headers = {}
+#     stop_column_found = None
+
+#     try:
+#         for search_row in range(1, min(6, sheet.max_row + 1)):
+#             temp_cols = []
+#             temp_headers = {}
+#             stop_detected = False
+
+#             for col in range(3, min(sheet.max_column + 1, 50)):  # Wider search window
+#                 try:
+#                     cell = sheet.cell(row=search_row, column=col).value
+#                     if cell:
+#                         header_clean = ' '.join(str(cell).split())
+#                         if len(header_clean) > 1:
+#                             header_lower = header_clean.lower()
+
+#                             # Always keep the column
+#                             temp_cols.append(col)
+#                             temp_headers[col] = header_clean
+
+#                             # Check if this header matches any stop keyword (partial match)
+#                             for stop_keyword in stop_at_keywords:
+#                                 if stop_keyword in header_lower:
+#                                     stop_column_found = header_clean
+#                                     stop_detected = True
+#                                     break
+
+#                             if stop_detected:
+#                                 break
+#                 except:
+#                     continue
+
+#             if stop_detected or len(temp_headers) > len(headers):
+#                 headers = temp_headers
+#                 metric_cols = temp_cols
+
+#             if stop_detected:
+#                 break
+
+#         # Fallback if nothing valid detected
+#         if not metric_cols:
+#             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
+#             for col in metric_cols:
+#                 headers[col] = f"Column_{chr(64 + col)}"
+
+#     except:
+#         # Emergency fallback
+#         metric_cols = [3, 4, 5, 6]
+#         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
+
+#     return metric_cols, headers, stop_column_found
 
 
 
