@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
 from io import BytesIO
+import re
 
 # ================================
 # CORE LOGIC - ROBUST AND SIMPLE
@@ -67,6 +68,8 @@ KNOWN_PLANTS = {
 #         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
 
 #     return metric_cols, headers, stop_column_found
+import re
+
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
@@ -82,46 +85,52 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
         for search_row in range(1, min(6, sheet.max_row + 1)):
             temp_cols = []
             temp_headers = {}
-            temp_stop_col = None
+            stop_detected = False
 
-            for col in range(3, min(sheet.max_column + 1, 20)):
+            for col in range(3, min(sheet.max_column + 1, 50)):  # Wider search window
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell:
-                        cell_str = str(cell).strip()
-                        if len(cell_str) > 1:
-                            header_clean = cell_str
-                            temp_headers[col] = header_clean
-                            temp_cols.append(col)
-
+                        header_clean = str(cell).strip()
+                        if len(header_clean) > 1:
                             header_lower = header_clean.lower()
+
+                            # Always keep the column
+                            temp_cols.append(col)
+                            temp_headers[col] = header_clean
+
+                            # Check if this header matches any stop keyword (partial match)
                             for stop_keyword in stop_at_keywords:
                                 if stop_keyword in header_lower:
-                                    temp_stop_col = stop_keyword
+                                    stop_column_found = header_clean
+                                    stop_detected = True
                                     break
 
-                            if temp_stop_col:
+                            if stop_detected:
                                 break
                 except:
                     continue
 
-            if temp_stop_col or len(temp_headers) > len(headers):
+            if stop_detected or len(temp_headers) > len(headers):
                 headers = temp_headers
                 metric_cols = temp_cols
-                if temp_stop_col:
-                    stop_column_found = temp_stop_col
-                    break
 
+            if stop_detected:
+                break
+
+        # Fallback if nothing valid detected
         if not metric_cols:
             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
             for col in metric_cols:
                 headers[col] = f"Column_{chr(64 + col)}"
 
     except:
+        # Emergency fallback
         metric_cols = [3, 4, 5, 6]
         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
 
     return metric_cols, headers, stop_column_found
+
 
 
 def detect_categories(sheet):
