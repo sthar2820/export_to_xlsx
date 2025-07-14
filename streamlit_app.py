@@ -374,27 +374,31 @@ def detect_part_name(sheet, categories):
       
 
 def extract_date(text):
-    if not text:
+    if not text or not isinstance(text, str):
         return None
 
-    # This captures things like:
-    # - 01/25
-    # - 12/2024
-    # - 12/21/2025
-    match = re.search(r"\b(\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?)\b", text)
-    if match:
-        raw_date = match.group(1)
+    # Try multiple date patterns
+    date_patterns = [
+        r"\b\d{1,2}/\d{1,2}/\d{2,4}\b",   # MM/DD/YYYY or M/D/YY
+        r"\b\d{1,2}/\d{4}\b",             # MM/YYYY
+        r"\b\d{1,2}/\d{2}\b"              # MM/YY
+    ]
 
-        try:
-            # Fix short year formats like MM/YY (e.g. 01/25 -> 2025-01-01)
-            if re.fullmatch(r"\d{1,2}/\d{2}", raw_date):
-                raw_date = "01/" + raw_date  # Add dummy day
-            parsed = parser.parse(raw_date, dayfirst=False, fuzzy=True)
-            return parsed.strftime("%Y-%m-%d")
-        except Exception as e:
-            return None  # Skip malformed values
+    for pattern in date_patterns:
+        match = re.search(pattern, text)
+        if match:
+            raw_date = match.group()
+            try:
+                # Normalize short formats
+                if re.fullmatch(r"\d{1,2}/\d{2}", raw_date):
+                    raw_date = "01/" + raw_date  # Assume day is 1
+                parsed = parser.parse(raw_date, dayfirst=False, fuzzy=True)
+                return parsed.strftime("%Y-%m-%d")
+            except Exception as e:
+                continue
 
     return None
+
 
 def find_subcategory_column(sheet, categories):
     try:
