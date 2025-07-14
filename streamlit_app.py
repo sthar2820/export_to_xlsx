@@ -372,7 +372,6 @@ def detect_part_name(sheet, categories):
         pass
     return None
       
-from dateutil import parser
 
 def extract_date(text):
     if not text:
@@ -439,7 +438,23 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
               
             # if len(subcat) < 2:
             #     continue
-            date_str = extract_date(subcat)
+            # date_str = extract_date(subcat)
+
+            # Try to extract date from subcategory cell if text contains it
+date_str = None
+if subcat:
+    date_str = extract_date(subcat)
+
+# If no date yet, scan other cells in the same row to find a date
+if not date_str:
+    for col_check in range(1, sheet.max_column + 1):
+        val = sheet.cell(row=row, column=col_check).value
+        if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
+            alt_date = extract_date(val)
+            if alt_date:
+                date_str = alt_date
+                break
+
               
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
