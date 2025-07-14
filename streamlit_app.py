@@ -370,6 +370,14 @@ def detect_part_name(sheet, categories):
     except:
         pass
     return None
+      
+def extract_date(text):
+    if not text:
+        return None
+    match = re.search(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
+    if match:
+        return match.group(0)
+    return None
 
 
 def find_subcategory_column(sheet, categories):
@@ -413,8 +421,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             subcat = str(subcat_cell).strip()
             if len(subcat) < 2:
                 continue
-            date_match = date_pattern.search(subcat)
-            date_str = date_match.group(0) if date_match else ""
+            date_str = extract_date(subcat)
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
                 if isinstance(val, (int, float)) and val is not None:
@@ -445,7 +452,7 @@ uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], a
 if uploaded_files:
     st.write(f"Processing {len(uploaded_files)} file(s)...")
     for file in uploaded_files:
-        st.subheader(f"📂 {file.name}")
+        st.subheader(f"{file.name}")
         try:
             wb = load_workbook(file, data_only=True)
             ws = wb.active
