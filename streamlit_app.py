@@ -460,7 +460,7 @@ if uploaded_files:
                 subcategory_col = find_subcategory_column(ws, category_rows)
                 plant_name, plant_row = detect_plant(ws)
                 smitch_row = category_rows[0]['row'] if category_rows else ws.max_row
-                part_name = detect_part_name(ws, plant_row, smitch_row)
+                part_name = detect_part_name(ws, category_rows)
 
             col1, col2, col3, col4 = st.columns(4)
             with col1:
