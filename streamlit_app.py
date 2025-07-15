@@ -441,46 +441,35 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 continue
 
             subcat = str(subcat_cell).strip()
-            date_str = extract_date(subcat)
-
-            # If no date yet, scan other cells in the same row to find a date
-            if not date_str:
-                for col_check in range(1, sheet.max_column + 1):
-                    val = sheet.cell(row=row, column=col_check).value
-                    if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
-                        alt_date = extract_date(val)
-                        if alt_date:
-                            date_str = alt_date
-                            break
 
             for col in metric_cols:
-    val = sheet.cell(row=row, column=col).value
+                val = sheet.cell(row=row, column=col).value
 
-    # Extract date ONLY from metric cell
-    date_str = None
-    if isinstance(val, str):
-        date_str = extract_date(val)
+                # Extract date ONLY from metric cell (if it's a string)
+                date_str = None
+                if isinstance(val, str):
+                    date_str = extract_date(val)
 
-    # Only store rows where the value is numeric (actual metric)
-    if isinstance(val, (int, float)) and val is not None:
-        header = headers.get(col, f"Column_{chr(64 + col)}")
-        if isinstance(header, str) and '\n' in header:
-            header = header.split('\n')[0]
-        header = str(header)[:30]
+                # Only store rows where the value is numeric
+                if isinstance(val, (int, float)) and val is not None:
+                    header = headers.get(col, f"Column_{chr(64 + col)}")
+                    if isinstance(header, str) and '\n' in header:
+                        header = header.split('\n')[0]
+                    header = str(header)[:30]
 
-        entry = {
-            'Category': current['name'],
-            'Subcategory': subcat,
-            'Date': date_str,
-            'Metric': header,
-            'Value': float(val)
-        }
-        if plant_name:
-            entry['Plant'] = plant_name
-        if part_name:
-            entry['Part Name'] = part_name
-        extracted.append(entry)
+                    entry = {
+                        'Category': current['name'],
+                        'Subcategory': subcat,
+                        'Date': date_str,
+                        'Metric': header,
+                        'Value': float(val)
+                    }
+                    if plant_name:
+                        entry['Plant'] = plant_name
+                    if part_name:
+                        entry['Part Name'] = part_name
 
+                    extracted.append(entry)
 
     return extracted
 
