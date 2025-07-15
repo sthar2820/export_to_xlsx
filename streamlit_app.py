@@ -424,54 +424,94 @@ def find_subcategory_column(sheet, categories):
     except:
         return 3
 
-def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
-    extracted = []
-    if not categories:
-        st.warning("No categories found")
-        return []
+ef detect_metric_columns(sheet, stop_at_keywords=None):
+    if stop_at_keywords is None:
+        stop_at_keywords = [
+            "demon-strated rate at 100%", "demonstrated rate at 100%",
+            "demon-strated rate", "demonstrated rate",
+        ]
 
-    for i in range(len(categories)):
-        current = categories[i]
-        start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+    metric_cols = []
+    headers = {}
+    stop_column_found = None
 
-        for row in range(start_row, end_row + 1):
-            subcat_cell = sheet.cell(row=row, column=subcategory_col).value
-            if not subcat_cell:
-                continue
+    try:
+        for search_row in range(1, min(6, sheet.max_row + 1)):
+            temp_cols = []
+            temp_headers = {}
+            temp_stop_col = None
 
-            subcat = str(subcat_cell).strip()
+            for col in range(3, min(sheet.max_column + 1, 20)):
+                try:
+                    cell = sheet.cell(row=search_row, column=col).value
+                    if cell:
+                        header_clean = ' '.join(str(cell).split())
+                        temp_headers[col] = header_clean
+                        temp_cols.append(col)
 
+                        header_lower = header_clean.lower()
+                        for stop_keyword in stop_at_keywords:
+                            if stop_keyword in header_lower:
+                                temp_stop_col = stop_keyword
+                                break
+
+                        if temp_stop_col:
+                            break
+                except:
+                    continue
+
+            if temp_stop_col or len(temp_headers) > len(headers):
+                headers = temp_headers
+                metric_cols = temp_cols
+                if temp_stop_col:
+                    stop_column_found = temp_stop_col
+                    break
+
+        if not metric_cols:
+            metric_cols = list(range(3, min(8, sheet.max_column + 1)))
             for col in metric_cols:
-                val = sheet.cell(row=row, column=col).value
+                headers[col] = f"Column_{chr(64 + col)}"
 
-                # Extract date ONLY from metric cell (if it's a string)
-                date_str = None
-                if isinstance(val, str):
-                    date_str = extract_date(val)
+    except:
+        metric_cols = [3, 4, 5, 6]
+        headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
 
-                # Only store rows where the value is numeric
-                if isinstance(val, (int, float)) and val is not None:
-                    header = headers.get(col, f"Column_{chr(64 + col)}")
-                    if isinstance(header, str) and '\n' in header:
-                        header = header.split('\n')[0]
-                    header = str(header)[:30]
+    return metric_cols, headers, stop_column_found
 
-                    entry = {
-                        'Category': current['name'],
-                        'Subcategory': subcat,
-                        'Date': date_str,
-                        'Metric': header,
-                        'Value': float(val)
-                    }
-                    if plant_name:
-                        entry['Plant'] = plant_name
-                    if part_name:
-                        entry['Part Name'] = part_name
+def detect_categories(sheet):
+    categories = []
+    category_map = {
+        'S': 'Sales Price', 'M': 'Material', 'I': 'Investment',
+        'T': 'Tooling', 'C': 'Cycle Times', 'H': 'Headcount'
+    }
 
-                    extracted.append(entry)
+    try:
+        for col in range(1, min(4, sheet.max_column + 1)):
+            for row in range(1, min(sheet.max_row + 1, 50)):
+                try:
+                    val = sheet.cell(row=row, column=col).value
+                    if not val:
+                        continue
+                    text = str(val).strip()
+                    lines = text.split('\n') if '\n' in text else [text]
+                    for line in lines:
+                        line_clean = line.strip().upper()
+                        if len(line_clean) == 1 and line_clean in category_map:
+                            if not any(c['letter'] == line_clean for c in categories):
+                                categories.append({
+                                    'row': row, 'column': col,
+                                    'letter': line_clean,
+                                    'name': category_map[line_clean]
+                                })
+                            break
+                except:
+                    continue
+        categories.sort(key=lambda x: x['row'])
+    except Exception as e:
+        st.error(f"Error detecting categories: {e}")
+        categories = []
 
-    return extracted
+    return categories
 
 
 
