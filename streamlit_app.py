@@ -441,7 +441,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 continue
 
             subcat = str(subcat_cell).strip()
-            date_str = extract_date(subcat)
+            date_str = extract_date(metric)
 
             # If no date yet, scan other cells in the same row to find a date
             if not date_str:
