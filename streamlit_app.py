@@ -482,6 +482,18 @@ def find_subcategory_column(sheet, categories):
 #     return extracted
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
+    col_date_map = {}
+      for col in metric_cols:
+          date_found = None
+          for row in range(1, 6):  # Check top 5 rows for headers
+              cell_val = sheet.cell(row=row, column=col).value
+              if isinstance(cell_val, str):
+                  possible_date = extract_date(cell_val)
+                  if possible_date:
+                      date_found = possible_date
+                      break
+          col_date_map[col] = date_found
+      
     if not categories:
         st.warning("No categories found")
         return []
@@ -538,9 +550,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 if not cell_str:
                     continue
 
-                date_str = extract_date(cell_str)
-                st.write(f"Row {row}, Col {col}: Extracted Date = {date_str} from '{cell_str}'")
-
+                # date_str = extract_date(cell_str)
+      
 
                 try:
                     numeric_value = float(re.findall(r"[-+]?\d*\.\d+|\d+", cell_str)[0])
@@ -551,6 +562,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 if isinstance(header, str) and '\n' in header:
                     header = header.split('\n')[0]
                 header = str(header)[:30]
+
+                date_str = col_date_map.get(col)
 
                 entry = {
                     'Category': current['name'],
