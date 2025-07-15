@@ -482,7 +482,6 @@ def find_subcategory_column(sheet, categories):
 #     return extracted
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
-
     if not categories:
         st.warning("No categories found")
         return []
@@ -497,14 +496,17 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             if not subcat_cell:
                 continue
             subcat = str(subcat_cell).strip()
-            if len(subcat) < 2:
-                continue
 
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
-                if isinstance(val, (int, float)):
-                    cell_text = sheet.cell(row=row, column=col).value
-                    date_str = extract_date(cell_text)
+
+                if isinstance(val, (int, float)) and val is not None:
+                    # Now extract date from the same cell *only if* it's a string type
+                    raw_cell = sheet.cell(row=row, column=col).value
+                    date_str = None
+
+                    if isinstance(raw_cell, str):
+                        date_str = extract_date(raw_cell)
 
                     header = headers.get(col, f"Column_{chr(64 + col)}")
                     if isinstance(header, str) and '\n' in header:
@@ -527,6 +529,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     extracted.append(entry)
 
     return extracted
+
 
 
 st.title("📊 SMITCH Excel Extractor")
