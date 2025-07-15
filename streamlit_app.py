@@ -483,16 +483,16 @@ def find_subcategory_column(sheet, categories):
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
     col_date_map = {}
-      for col in metric_cols:
-          date_found = None
-          for row in range(1, 6):  # Check top 5 rows for headers
-              cell_val = sheet.cell(row=row, column=col).value
-              if isinstance(cell_val, str):
-                  possible_date = extract_date(cell_val)
-                  if possible_date:
-                      date_found = possible_date
-                      break
-          col_date_map[col] = date_found
+    for col in metric_cols:
+        date_found = None
+        for row in range(1, 6):  # Check top 5 rows for headers
+            cell_val = sheet.cell(row=row, column=col).value
+            if isinstance(cell_val, str):
+               possible_date = extract_date(cell_val)
+               if possible_date:
+                  date_found = possible_date
+                  break
+        col_date_map[col] = date_found
       
     if not categories:
         st.warning("No categories found")
