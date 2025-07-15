@@ -524,9 +524,13 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     continue
 
                 header = headers.get(col, f"Column_{chr(64 + col)}")
-                if isinstance(header, str) and '\n' in header:
-                    header = header.split('\n')[0]
-                header = str(header).strip()[:30]
+                header = str(header)
+                # if isinstance(header, str) and '\n' in header:
+                #     header = header.split('\n')[0]
+                #  header = str(header).strip()[:30]
+                words = header.split()
+                cleaned_words = [w for w in words if w.isalpha()]
+                header = "".join(cleaned_words).strip()[:30]
 
                 date_str = col_date_map.get(col)
 
