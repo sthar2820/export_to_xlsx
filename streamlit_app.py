@@ -509,41 +509,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 continue
             subcat = str(subcat_cell).strip()
               
-            
-
-
-      
-
-            # for col in metric_cols:
-            #     val = sheet.cell(row=row, column=col).value
-
-            #     if isinstance(val, (int, float)) and val is not None:
-            #         # Now extract date from the same cell *only if* it's a string type
-            #         raw_cell = sheet.cell(row=row, column=col).value
-            #         date_str = None
-
-            #         if isinstance(raw_cell, str):
-            #             date_str = extract_date(raw_cell)
-
-            #         header = headers.get(col, f"Column_{chr(64 + col)}")
-            #         if isinstance(header, str) and '\n' in header:
-            #             header = header.split('\n')[0]
-            #         header = str(header)[:30]
-
-            #         entry = {
-            #             'Category': current['name'],
-            #             'Subcategory': subcat,
-            #             'Date': date_str,
-            #             'Metric': header,
-            #             'Value': float(val)
-            #         }
-
-            #         if plant_name:
-            #             entry['Plant'] = plant_name
-            #         if part_name:
-            #             entry['Part Name'] = part_name
-
-            #         extracted.append(entry)
             for col in metric_cols:
                 cell_val = sheet.cell(row=row, column=col).value
                 cell_str = str(cell_val).strip() if cell_val is not None else ""
@@ -561,7 +526,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 header = headers.get(col, f"Column_{chr(64 + col)}")
                 if isinstance(header, str) and '\n' in header:
                     header = header.split('\n')[0]
-                header = str(header)[:30]
+                header = str(header).strip()[:30]
 
                 date_str = col_date_map.get(col)
 
