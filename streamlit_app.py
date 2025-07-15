@@ -374,16 +374,15 @@ def detect_part_name(sheet, categories):
       
 
 def extract_date(text):
-    if not text:
+    if not isinstance(text, str):
         return None
-
-    match = re.search(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
-    if match:
+    matches = re.findall(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
+    for match in matches:
         try:
-            parsed_date = parser.parse(match.group(0), dayfirst=False, yearfirst=False)
-            return parsed_date.strftime("%Y-%m-%d")
-        except Exception:
-            return None
+            dt = parse(match, dayfirst=False, yearfirst=False)
+            return dt.strftime("%Y-%m-%d")
+        except:
+            continue
     return None
 
 
@@ -475,7 +474,6 @@ def find_subcategory_column(sheet, categories):
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
     if not categories:
-        st.warning("No categories found")
         return []
 
     for i in range(len(categories)):
@@ -487,21 +485,16 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
             if not subcat_cell:
                 continue
-
             subcat = str(subcat_cell).strip()
             if len(subcat) < 2:
                 continue
 
-            date_str = None
-
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
-                cell_text = sheet.cell(row=row, column=col).value
+                if isinstance(val, (int, float)):
+                    metric_cell = sheet.cell(row=row, column=col).value
+                    date_str = extract_date(str(metric_cell)) if metric_cell else None
 
-                if not date_str and isinstance(cell_text, str):
-                    date_str = extract_date(cell_text)
-
-                if isinstance(val, (int, float)) and val is not None:
                     header = headers.get(col, f"Column_{chr(64 + col)}")
                     if isinstance(header, str) and '\n' in header:
                         header = header.split('\n')[0]
@@ -522,7 +515,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     extracted.append(entry)
 
     return extracted
-
 
 st.title("📊 SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
