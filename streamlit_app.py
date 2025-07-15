@@ -424,7 +424,7 @@ def find_subcategory_column(sheet, categories):
     except:
         return 3
 
-ef detect_metric_columns(sheet, stop_at_keywords=None):
+ def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
             "demon-strated rate at 100%", "demonstrated rate at 100%",
