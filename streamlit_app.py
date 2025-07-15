@@ -379,11 +379,20 @@ def extract_date(text):
     matches = re.findall(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
     for match in matches:
         try:
-            dt = parse(match, dayfirst=False, yearfirst=False)
+            # Try MM/DD/YYYY, MM/YYYY, MM/YY
+            if re.match(r"\d{1,2}/\d{4}", match):
+                dt = datetime.strptime(match, "%m/%Y")
+            elif re.match(r"\d{1,2}/\d{2}", match):
+                dt = datetime.strptime(match, "%m/%y")
+            elif re.match(r"\d{1,2}/\d{1,2}/\d{4}", match):
+                dt = datetime.strptime(match, "%m/%d/%Y")
+            else:
+                continue
             return dt.strftime("%Y-%m-%d")
         except:
             continue
     return None
+
 
 
 def find_subcategory_column(sheet, categories):
