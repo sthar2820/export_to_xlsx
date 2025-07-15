@@ -454,24 +454,35 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                             break
 
             for col in metric_cols:
-                val = sheet.cell(row=row, column=col).value
-                if isinstance(val, (int, float)) and val is not None:
-                    header = headers.get(col, f"Column_{chr(64 + col)}")
-                    if isinstance(header, str) and '\n' in header:
-                        header = header.split('\n')[0]
-                    header = str(header)[:30]
-                    entry = {
-                        'Category': current['name'],
-                        'Subcategory': subcat,
-                        'Date': date_str,
-                        'Metric': header,
-                        'Value': float(val)
-                    }
-                    if plant_name:
-                        entry['Plant'] = plant_name
-                    if part_name:
-                        entry['Part Name'] = part_name
-                    extracted.append(entry)
+    val = sheet.cell(row=row, column=col).value
+
+    # Only keep numeric values as metric
+    if isinstance(val, (int, float)) and val is not None:
+        # Extract date from the metric cell (if any)
+        cell_text = sheet.cell(row=row, column=col).value
+        date_str = None
+        if isinstance(cell_text, str):
+            date_str = extract_date(cell_text)
+
+        header = headers.get(col, f"Column_{chr(64 + col)}")
+        if isinstance(header, str) and '\n' in header:
+            header = header.split('\n')[0]
+        header = str(header)[:30]
+
+        entry = {
+            'Category': current['name'],
+            'Subcategory': subcat,
+            'Date': date_str,
+            'Metric': header,
+            'Value': float(val)
+        }
+        if plant_name:
+            entry['Plant'] = plant_name
+        if part_name:
+            entry['Part Name'] = part_name
+
+        extracted.append(entry)
+
 
     return extracted
 
