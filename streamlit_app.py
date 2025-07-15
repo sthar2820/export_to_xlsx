@@ -539,6 +539,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     continue
 
                 date_str = extract_date(cell_str)
+                st.write(f"Row {row}, Col {col}: Extracted Date = {date_str} from '{cell_str}'")
+
 
                 try:
                     numeric_value = float(re.findall(r"[-+]?\d*\.\d+|\d+", cell_str)[0])
@@ -548,7 +550,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 header = headers.get(col, f"Column_{chr(64 + col)}")
                 if isinstance(header, str) and '\n' in header:
                     header = header.split('\n')[0]
-                    header = str(header)[:30]
+                header = str(header)[:30]
 
                 entry = {
                     'Category': current['name'],
