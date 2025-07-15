@@ -530,7 +530,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 #  header = str(header).strip()[:30]
                 words = header.split()
                 cleaned_words = [w for w in words if w.isalpha()]
-                header = "".join(cleaned_words).strip()[:30]
+                header = " ".join(cleaned_words).strip()[:30]
 
                 date_str = col_date_map.get(col)
 
