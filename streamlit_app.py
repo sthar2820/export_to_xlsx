@@ -376,15 +376,15 @@ def detect_part_name(sheet, categories):
 def extract_date(text):
     if not isinstance(text, str):
         return None
+
     matches = re.findall(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
     for match in matches:
         try:
-            # Try MM/DD/YYYY, MM/YYYY, MM/YY
-            if re.match(r"\d{1,2}/\d{4}", match):
+            if re.match(r"\d{1,2}/\d{4}$", match):  # MM/YYYY
                 dt = datetime.strptime(match, "%m/%Y")
-            elif re.match(r"\d{1,2}/\d{2}", match):
+            elif re.match(r"\d{1,2}/\d{2}$", match):  # MM/YY
                 dt = datetime.strptime(match, "%m/%y")
-            elif re.match(r"\d{1,2}/\d{1,2}/\d{4}", match):
+            elif re.match(r"\d{1,2}/\d{1,2}/\d{4}$", match):  # MM/DD/YYYY
                 dt = datetime.strptime(match, "%m/%d/%Y")
             else:
                 continue
@@ -482,7 +482,9 @@ def find_subcategory_column(sheet, categories):
 #     return extracted
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
+
     if not categories:
+        st.warning("No categories found")
         return []
 
     for i in range(len(categories)):
@@ -501,8 +503,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
                 if isinstance(val, (int, float)):
-                    metric_cell = sheet.cell(row=row, column=col).value
-                    date_str = extract_date(str(metric_cell)) if metric_cell else None
+                    cell_text = sheet.cell(row=row, column=col).value
+                    date_str = extract_date(cell_text)
 
                     header = headers.get(col, f"Column_{chr(64 + col)}")
                     if isinstance(header, str) and '\n' in header:
@@ -516,6 +518,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                         'Metric': header,
                         'Value': float(val)
                     }
+
                     if plant_name:
                         entry['Plant'] = plant_name
                     if part_name:
@@ -524,6 +527,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     extracted.append(entry)
 
     return extracted
+
 
 st.title("📊 SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
