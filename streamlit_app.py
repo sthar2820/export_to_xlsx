@@ -478,40 +478,46 @@ def find_subcategory_column(sheet, categories):
 
     return metric_cols, headers, stop_column_found
 
-def detect_categories(sheet):
-    categories = []
-    category_map = {
-        'S': 'Sales Price', 'M': 'Material', 'I': 'Investment',
-        'T': 'Tooling', 'C': 'Cycle Times', 'H': 'Headcount'
-    }
+def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
+    extracted = []
+    date_pattern = re.compile(r"\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{4}|\d{1,2}/\d{2}\b")  
+    if not categories:
+        st.warning("No categories found")
+        return []
+    for i in range(len(categories)):
+        current = categories[i]
+        start_row = current['row']
+        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+        for row in range(start_row, end_row + 1):
+            subcat_cell = sheet.cell(row=row, column=subcategory_col).value
+            if not subcat_cell:
+                continue
+            subcat = str(subcat_cell).strip()
+            if len(subcat) < 2:
+                continue
+            date_match = date_pattern.search(subcat)
+            date_str = date_match.group(0) if date_match else ""
+            for col in metric_cols:
+                val = sheet.cell(row=row, column=col).value
+                if isinstance(val, (int, float)) and val is not None:
+                    header = headers.get(col, f"Column_{chr(64 + col)}")
+                    if isinstance(header, str) and '\n' in header:
+                        header = header.split('\n')[0]
+                    header = str(header)[:30]
+                    entry = {
+                        'Category': current['name'],
+                        'Subcategory': subcat,
+                        'Date':date_str,
+                        'Metric': header,
+                        'Value': float(val)
+                    }
+                    if plant_name:
+                        entry['Plant'] = plant_name
+                    if part_name:
+                        entry['Part Name'] = part_name
+                    extracted.append(entry)
+    return extracted
 
-    try:
-        for col in range(1, min(4, sheet.max_column + 1)):
-            for row in range(1, min(sheet.max_row + 1, 50)):
-                try:
-                    val = sheet.cell(row=row, column=col).value
-                    if not val:
-                        continue
-                    text = str(val).strip()
-                    lines = text.split('\n') if '\n' in text else [text]
-                    for line in lines:
-                        line_clean = line.strip().upper()
-                        if len(line_clean) == 1 and line_clean in category_map:
-                            if not any(c['letter'] == line_clean for c in categories):
-                                categories.append({
-                                    'row': row, 'column': col,
-                                    'letter': line_clean,
-                                    'name': category_map[line_clean]
-                                })
-                            break
-                except:
-                    continue
-        categories.sort(key=lambda x: x['row'])
-    except Exception as e:
-        st.error(f"Error detecting categories: {e}")
-        categories = []
-
-    return categories
 
 
 
