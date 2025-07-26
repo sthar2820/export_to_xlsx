@@ -364,37 +364,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
 
     return extracted
-def extract_standard_cost_block(sheet, plant_name=None, part_name=None):
-    extracted = []
-    found = False
-    for row in range(1, sheet.max_row + 1):
-        for col in range(1, sheet.max_column + 1):
-            val = sheet.cell(row=row, column=col).value
-            if val and isinstance(val, str) and "standard cost and assumptions" in val.lower():
-                found = True
-                base_row = row + 1  # assume headers below title
-                date_col = col
-                metric_start_col = col + 1
-                for offset in range(3):  # scan 3 cols to the right
-                    metric_col = metric_start_col + offset
-                    header = sheet.cell(row=base_row, column=metric_col).value
-                    value = sheet.cell(row=base_row + 1, column=metric_col).value
-                    if header and value is not None:
-                        entry = {
-                            "Category": "Standard Cost and Assumptions",
-                            "Subcategory": "",
-                            "Date": None,
-                            "Metric": str(header).strip(),
-                            "Value": value
-                        }
-                        if plant_name:
-                            entry["Plant"] = plant_name
-                        if part_name:
-                            entry["Part Name"] = part_name
-                        extracted.append(entry)
-                return extracted
-    return []
-
 
 
 st.title("📊 SMITCH Excel Extractor")
@@ -430,8 +399,6 @@ if uploaded_files:
 
             with st.spinner("Extracting data..."):
                 data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
-                standard_cost_data = extract_standard_cost_block(ws, plant_name, part_name)
-                data.extend(standard_cost_data)
 
 
             if data:
