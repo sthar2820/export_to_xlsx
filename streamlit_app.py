@@ -70,41 +70,47 @@ KNOWN_PLANTS = {
 #     return metric_cols, headers, stop_column_found
 
 #Try - needs to update this
-def extract_standard_cost_block(sheet, plant_name=None, part_name=None):
+def extract_ebit_loss_block(sheet, plant_name=None, part_name=None):
     extracted = []
-    for row in range(1, sheet.max_row + 1):
-        for col in range(1, sheet.max_column + 1):
-            val = sheet.cell(row=row, column=col).value
-            if val and isinstance(val, str) and "standard cost and assumptions" in val.lower():
-                header_row = row + 1
-                value_row = row + 2  # values are typically 2 rows below the title
+    key_metrics = {
+        "weekly apw": "Weekly APW",
+        "annualized loss": "Annualized Loss",
+        "var oh total per piece": "VAR OH Total per Piece",
+        "labor total per piece": "Labor Total per Piece",
+        "total loss/pc": "Total Loss per Piece"
+    }
 
-                # Scan horizontally from this point
-                for c in range(col, sheet.max_column + 1):
-                    header = sheet.cell(row=header_row, column=c).value
-                    value = sheet.cell(row=value_row, column=c).value
+    for row in range(1, sheet.max_row):
+        for col in range(1, sheet.max_column):
+            cell = sheet.cell(row=row, column=col).value
+            if not isinstance(cell, str):
+                continue
+            cell_lower = cell.lower().strip()
 
-                    if header and value not in [None, ""]:
-                        metric_name = str(header).strip()
+            for key in key_metrics:
+                if key in cell_lower:
+                    # Try to get the value from the cell to the right
+                    value = sheet.cell(row=row, column=col + 1).value
+                    if value:
                         try:
-                            numeric_value = float(value)
+                            numeric = float(str(value).replace("£", "").replace("$", "").replace(",", "").strip())
                         except:
                             continue
 
                         entry = {
-                            "Category": "Standard Cost and Assumptions",
+                            "Category": "EBIT LOSS",
                             "Subcategory": "",
                             "Date": None,
-                            "Metric": metric_name,
-                            "Value": numeric_value
+                            "Metric": key_metrics[key],
+                            "Value": numeric
                         }
                         if plant_name:
                             entry["Plant"] = plant_name
                         if part_name:
                             entry["Part Name"] = part_name
                         extracted.append(entry)
-                return extracted
-    return []
+    return extracted
+
 
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
@@ -404,7 +410,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
     return extracted
 
 
-st.title("📊 SMITCH Excel Extractor")
+st.title(" SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
 
 uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], accept_multiple_files=True)
@@ -437,8 +443,9 @@ if uploaded_files:
 
             with st.spinner("Extracting data..."):
                 main_data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
-                standard_cost_data = extract_standard_cost_block(ws, plant_name, part_name)
-                data = main_data + standard_cost_data  # append as second category
+                ebit_loss_data = extract_ebit_loss_block(ws, plant_name, part_name)
+                data = main_data + ebit_loss_data
+
 
 
             if data:
