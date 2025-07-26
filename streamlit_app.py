@@ -68,6 +68,44 @@ KNOWN_PLANTS = {
 #         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
 
 #     return metric_cols, headers, stop_column_found
+
+#Try - needs to update this
+def extract_standard_cost_block(sheet, plant_name=None, part_name=None):
+    extracted = []
+    for row in range(1, sheet.max_row + 1):
+        for col in range(1, sheet.max_column + 1):
+            val = sheet.cell(row=row, column=col).value
+            if val and isinstance(val, str) and "standard cost and assumptions" in val.lower():
+                header_row = row + 1
+                value_row = row + 2  # values are typically 2 rows below the title
+
+                # Scan horizontally from this point
+                for c in range(col, sheet.max_column + 1):
+                    header = sheet.cell(row=header_row, column=c).value
+                    value = sheet.cell(row=value_row, column=c).value
+
+                    if header and value not in [None, ""]:
+                        metric_name = str(header).strip()
+                        try:
+                            numeric_value = float(value)
+                        except:
+                            continue
+
+                        entry = {
+                            "Category": "Standard Cost and Assumptions",
+                            "Subcategory": "",
+                            "Date": None,
+                            "Metric": metric_name,
+                            "Value": numeric_value
+                        }
+                        if plant_name:
+                            entry["Plant"] = plant_name
+                        if part_name:
+                            entry["Part Name"] = part_name
+                        extracted.append(entry)
+                return extracted
+    return []
+
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
@@ -398,7 +436,9 @@ if uploaded_files:
                 st.metric("Stop Column", stop_column_found.title() if stop_column_found else "Auto-detected")
 
             with st.spinner("Extracting data..."):
-                data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
+                main_data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
+                standard_cost_data = extract_standard_cost_block(ws, plant_name, part_name)
+                data = main_data + standard_cost_data  # append as second category
 
 
             if data:
