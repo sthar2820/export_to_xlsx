@@ -384,7 +384,7 @@ def find_subcategory_column(sheet, categories):
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
     col_date_map = {}
-    subcat = normalize_dynamic(str(subcat_cell).strip())
+    
 
     for col in metric_cols:
         date_found = None
@@ -410,7 +410,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
             if not subcat_cell:
                 continue
-            subcat = str(subcat_cell).strip()
+            # subcat = str(subcat_cell).strip()
+            subcat = normalize_dynamic(str(subcat_cell).strip())
               
             for col in metric_cols:
                 cell_val = sheet.cell(row=row, column=col).value
