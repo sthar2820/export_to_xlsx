@@ -457,7 +457,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
 st.title(" SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
-
 uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], accept_multiple_files=True)
 
 if uploaded_files:
@@ -491,8 +490,6 @@ if uploaded_files:
                 ebit_loss_data = extract_ebit_loss_block(ws, plant_name, part_name)
                 data = main_data + ebit_loss_data
 
-
-
             if data:
                 df = pd.DataFrame(data)
                 st.success(f"Extracted {len(df)} records")
@@ -517,10 +514,80 @@ if uploaded_files:
                 )
             else:
                 st.warning(" No data extracted from this file")
+
+            # <-- ADDED: Save normalization map after every file processed
+            save_normalization_map()
+
         except Exception as e:
             st.error(f" Failed to process {file.name}")
             st.error(f"Error: {str(e)}")
 else:
     st.info(" Upload Excel files to get started")
     save_normalization_map()
+
+# uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], accept_multiple_files=True)
+
+# if uploaded_files:
+#     st.write(f"Processing {len(uploaded_files)} file(s)...")
+#     for file in uploaded_files:
+#         st.subheader(f"{file.name}")
+#         try:
+#             wb = load_workbook(file, data_only=True)
+#             ws = wb.active
+#             st.write(f"File loaded: {ws.max_row} rows × {ws.max_column} columns")
+#             with st.spinner("Detecting file structure..."):
+#                 metric_columns, headers, stop_column_found = detect_metric_columns(ws)
+#                 category_rows = detect_categories(ws)
+#                 subcategory_col = find_subcategory_column(ws, category_rows)
+#                 plant_name, plant_row = detect_plant(ws)
+#                 smitch_row = category_rows[0]['row'] if category_rows else ws.max_row
+#                 part_name = detect_part_name(ws, category_rows)
+
+#             col1, col2, col3, col4 = st.columns(4)
+#             with col1:
+#                 st.metric("Categories", len(category_rows))
+#             with col2:
+#                 st.metric("Metric Columns", len(metric_columns))
+#             with col3:
+#                 st.metric("Subcategory Col", chr(64 + subcategory_col))
+#             with col4:
+#                 st.metric("Stop Column", stop_column_found.title() if stop_column_found else "Auto-detected")
+
+#             with st.spinner("Extracting data..."):
+#                 main_data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
+#                 ebit_loss_data = extract_ebit_loss_block(ws, plant_name, part_name)
+#                 data = main_data + ebit_loss_data
+
+
+
+#             if data:
+#                 df = pd.DataFrame(data)
+#                 st.success(f"Extracted {len(df)} records")
+
+#                 st.write("**Categories found:**")
+#                 for cat, count in df['Category'].value_counts().items():
+#                     st.write(f"• {cat}: {count} records")
+
+#                 st.write("**Data preview:**")
+#                 st.dataframe(df.head(10))
+
+#                 output = BytesIO()
+#                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+#                     df.to_excel(writer, index=False, sheet_name='Extracted')
+#                 output.seek(0)
+
+#                 st.download_button(
+#                     label=" Download Excel",
+#                     data=output,
+#                     file_name=f"{file.name.split('.')[0]}_extracted.xlsx",
+#                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+#                 )
+#             else:
+#                 st.warning(" No data extracted from this file")
+#         except Exception as e:
+#             st.error(f" Failed to process {file.name}")
+#             st.error(f"Error: {str(e)}")
+# else:
+#     st.info(" Upload Excel files to get started")
+#     save_normalization_map()
 
