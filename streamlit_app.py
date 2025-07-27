@@ -277,6 +277,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     continue
 
                 raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
+                if "cm%" in raw_header:
+                    continue
                 matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
  
 
@@ -298,6 +300,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     entry['Plant'] = plant_name
                 if part_name:
                     entry['Part Name'] = part_name
+                
 
                 extracted.append(entry)
 
