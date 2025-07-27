@@ -237,10 +237,15 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
     METRIC_NORMALIZATION = {
         "quoted cost model": "Quoted",
+        "quoted": "Quoted",
         "plex standard": "Plex",
+        "plex": "Plex",
         "actual performance": "Actual",
+        "actual": "Actual",
         "forecasted cost": "Forecasted",
+        "forecasted": "Forecasted",
         "demonstrated rate": "Demonstrated",
+        "demon-strated": "Demonstrated",
     }
 
     col_date_map = {}
@@ -271,10 +276,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 if not isinstance(val, (int, float)):
                     continue
 
-                raw_header = headers.get(col, "").strip().lower().replace('\n', ' ')
-                raw_header = ' '.join(raw_header.split())  # clean extra spaces
+                raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
                 matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
-
  
 
                 if matched_key:
@@ -299,7 +302,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 extracted.append(entry)
 
     return extracted
-
 
 # def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
 #     extracted = []
