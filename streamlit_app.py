@@ -87,21 +87,19 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                        header_clean = ' '.join(str(cell).split()).lower()  # Normalize space and lowercase
+                        header_clean = ' '.join(str(cell).strip().split()).lower()
                         temp_headers[col] = header_clean
                         temp_cols.append(col)
 
-                        header_lower = header_clean.lower()
                         for stop_keyword in stop_at_keywords:
-                            if stop_keyword in header_lower:
+                            if stop_keyword in header_clean:
                                 temp_stop_col = stop_keyword
                                 break
-
                         if temp_stop_col:
                             break
                 except:
                     continue
-      
+
             if temp_stop_col or len(temp_headers) > len(headers):
                 headers = temp_headers
                 metric_cols = temp_cols
@@ -112,11 +110,11 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
         if not metric_cols:
             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
             for col in metric_cols:
-                headers[col] = f"Column_{chr(64 + col)}"
+                headers[col] = f"column_{chr(64 + col)}".lower()
 
     except:
         metric_cols = [3, 4, 5, 6]
-        headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
+        headers = {3: "column_c", 4: "column_d", 5: "column_e", 6: "column_f"}
 
     return metric_cols, headers, stop_column_found
 
@@ -237,16 +235,14 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
         st.warning("No categories found")
         return []
 
-    # Optional: header normalization map
     METRIC_NORMALIZATION = {
-    "quoted cost model": "Quoted",
-    "plex standard": "Plex",
-    "actual performance": "Actual",
-    "forecasted cost": "Forecasted",
-    "demonstrated rate": "Demonstrated",
-}
+        "quoted cost model": "Quoted",
+        "plex standard": "Plex",
+        "actual performance": "Actual",
+        "forecasted cost": "Forecasted",
+        "demonstrated rate": "Demonstrated",
+    }
 
-    # Precompute column-date mapping from header rows
     col_date_map = {}
     for col in metric_cols:
         date_found = None
@@ -275,13 +271,13 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 if not isinstance(val, (int, float)):
                     continue
 
-                header_raw = headers.get(col, f"Column_{chr(64 + col)}").strip().lower()
-                matched_key = next((k for k in METRIC_NORMALIZATION if k in header_raw), None)
+                raw_header = headers.get(col, "").strip().lower()
+                matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
 
                 if matched_key:
-                    header = METRIC_NORMALIZATION[matched_key]
+                    metric = METRIC_NORMALIZATION[matched_key]
                 else:
-                    header = header_raw.split()[0].capitalize()
+                    metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
 
                 date_str = col_date_map.get(col)
 
@@ -289,10 +285,9 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     'Category': current['name'],
                     'Subcategory': subcat,
                     'Date': date_str,
-                    'Metric': header,
+                    'Metric': metric,
                     'Value': float(val)
                 }
-
                 if plant_name:
                     entry['Plant'] = plant_name
                 if part_name:
