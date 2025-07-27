@@ -87,7 +87,7 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                        header_clean = ' '.join(str(cell).split())
+                        header_clean = ' '.join(str(cell).split()).trim()
                         temp_headers[col] = header_clean
                         temp_cols.append(col)
 
@@ -173,7 +173,7 @@ def detect_part_name(sheet, categories):
             return None
         first_category_row = categories[0]['row']
         for row in range(first_category_row - 1, 0, -1):  # search upward
-            val = sheet.cell(row=row, column=2).value  # Column B
+            val = sheet.cell(row=row, column=2).value  
             if val and isinstance(val, str):
                 val = val.strip()
                 # Return first non-empty text that isn't a single letter
