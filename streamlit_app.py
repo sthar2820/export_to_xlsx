@@ -87,7 +87,7 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                        header_clean = ' '.join(str(cell).split()).trim()
+                        header_clean = ' '.join(str(cell).split())
                         temp_headers[col] = header_clean
                         temp_cols.append(col)
 
@@ -341,7 +341,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 #  header = str(header).strip()[:30]
                 words = header.split()
                 cleaned_words = [w for w in words if w.isalpha()]
-                header = " ".join(cleaned_words).strip()[:30]
+                header = " ".join(cleaned_words).strip()
 
                 date_str = col_date_map.get(col)
 
