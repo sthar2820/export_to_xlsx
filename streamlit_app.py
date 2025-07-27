@@ -303,8 +303,7 @@ def find_subcategory_column(sheet, categories):
         candidates = [category_col + 1, category_col + 2, 3, 2]
         best_col = category_col + 1
         max_text_cells = 0
-        subcat = normalize_dynamic(str(subcat_cell).strip())
-
+        
 
         for col in candidates:
             if col < 1 or col > sheet.max_column:
@@ -385,6 +384,8 @@ def find_subcategory_column(sheet, categories):
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
     col_date_map = {}
+    subcat = normalize_dynamic(str(subcat_cell).strip())
+
     for col in metric_cols:
         date_found = None
         for row in range(1, 6):  # Check top 5 rows for headers
