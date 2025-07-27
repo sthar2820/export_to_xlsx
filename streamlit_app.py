@@ -230,81 +230,8 @@ def find_subcategory_column(sheet, categories):
     except:
         return 3
 
-# def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
-#     extracted = []
-#     if not categories:
-#         st.warning("No categories found")
-#         return []
-
-#     for i in range(len(categories)):
-#         current = categories[i]
-#         start_row = current['row']
-#         end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
-
-#         for row in range(start_row, end_row + 1):
-#             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
-#             if not subcat_cell:
-#                 continue
-
-#             metric = str(metric_cols).strip()
-#             date_str = extract_date(metric)
-
-#             # If no date yet, scan other cells in the same row to find a date
-#             if not date_str:
-#                 for col_check in range(1, sheet.max_column + 1):
-#                     val = sheet.cell(row=row, column=col_check).value
-#                     if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
-#                         alt_date = extract_date(val)
-#                         if alt_date:
-#                             date_str = alt_date
-#                             break
-
-#             for col in metric_cols:
-#     val = sheet.cell(row=row, column=col).value
-
-#     # Only keep numeric values as metric
-#     if isinstance(val, (int, float)) and val is not None:
-#         # Extract date from the metric cell (if any)
-#         cell_text = sheet.cell(row=row, column=col).value
-#         date_str = None
-#         if isinstance(cell_text, str):
-#             date_str = extract_date(cell_text)
-
-#         header = headers.get(col, f"Column_{chr(64 + col)}")
-#         if isinstance(header, str) and '\n' in header:
-#             header = header.split('\n')[0]
-#         header = str(header)[:30]
-
-#         entry = {
-#             'Category': current['name'],
-#             'Subcategory': subcat,
-#             'Date': date_str,
-#             'Metric': header,
-#             'Value': float(val)
-#         }
-#         if plant_name:
-#             entry['Plant'] = plant_name
-#         if part_name:
-#             entry['Part Name'] = part_name
-
-#         extracted.append(entry)
-
-
-#     return extracted
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
-    col_date_map = {}
-    for col in metric_cols:
-        date_found = None
-        for row in range(1, 6):  # Check top 5 rows for headers
-            cell_val = sheet.cell(row=row, column=col).value
-            if isinstance(cell_val, str):
-               possible_date = extract_date(cell_val)
-               if possible_date:
-                  date_found = possible_date
-                  break
-        col_date_map[col] = date_found
-      
     if not categories:
         st.warning("No categories found")
         return []
@@ -318,50 +245,122 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
             if not subcat_cell:
                 continue
-            subcat = str(subcat_cell).strip()
-              
-            for col in metric_cols:
-                cell_val = sheet.cell(row=row, column=col).value
-                cell_str = str(cell_val).strip() if cell_val is not None else ""
-                if not cell_str:
-                    continue
 
-                # date_str = extract_date(cell_str)
+            metric = str(metric_cols).strip()
+            date_str = extract_date(metric)
+
+            # If no date yet, scan other cells in the same row to find a date
+            if not date_str:
+                for col_check in range(1, sheet.max_column + 1):
+                    val = sheet.cell(row=row, column=col_check).value
+                    if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
+                        alt_date = extract_date(val)
+                        if alt_date:
+                            date_str = alt_date
+                            break
+
+            for col in metric_cols:
+    val = sheet.cell(row=row, column=col).value
+
+    # Only keep numeric values as metric
+    if isinstance(val, (int, float)) and val is not None:
+        # Extract date from the metric cell (if any)
+        cell_text = sheet.cell(row=row, column=col).value
+        date_str = None
+        if isinstance(cell_text, str):
+            date_str = extract_date(cell_text)
+
+        header = headers.get(col, f"Column_{chr(64 + col)}")
+        if isinstance(header, str) and '\n' in header:
+            header = header.split('\n')[0]
+        header = str(header)[:30]
+
+        entry = {
+            'Category': current['name'],
+            'Subcategory': subcat,
+            'Date': date_str,
+            'Metric': header,
+            'Value': float(val)
+        }
+        if plant_name:
+            entry['Plant'] = plant_name
+        if part_name:
+            entry['Part Name'] = part_name
+
+        extracted.append(entry)
+   return extracted
+
+# def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
+#     extracted = []
+#     col_date_map = {}
+#     for col in metric_cols:
+#         date_found = None
+#         for row in range(1, 6):  # Check top 5 rows for headers
+#             cell_val = sheet.cell(row=row, column=col).value
+#             if isinstance(cell_val, str):
+#                possible_date = extract_date(cell_val)
+#                if possible_date:
+#                   date_found = possible_date
+#                   break
+#         col_date_map[col] = date_found
+      
+#     if not categories:
+#         st.warning("No categories found")
+#         return []
+
+#     for i in range(len(categories)):
+#         current = categories[i]
+#         start_row = current['row']
+#         end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+
+#         for row in range(start_row, end_row + 1):
+#             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
+#             if not subcat_cell:
+#                 continue
+#             subcat = str(subcat_cell).strip()
+              
+#             for col in metric_cols:
+#                 cell_val = sheet.cell(row=row, column=col).value
+#                 cell_str = str(cell_val).strip() if cell_val is not None else ""
+#                 if not cell_str:
+#                     continue
+
+#                 # date_str = extract_date(cell_str)
       
 
-                try:
-                    numeric_value = float(re.findall(r"[-+]?\d*\.\d+|\d+", cell_str)[0])
-                except (IndexError, ValueError):
-                    continue
+#                 try:
+#                     numeric_value = float(re.findall(r"[-+]?\d*\.\d+|\d+", cell_str)[0])
+#                 except (IndexError, ValueError):
+#                     continue
 
-                header = headers.get(col, f"Column_{chr(64 + col)}")
-                header = str(header)
-                # if isinstance(header, str) and '\n' in header:
-                #     header = header.split('\n')[0]
-                #  header = str(header).strip()[:30]
-                words = header.split()
-                cleaned_words = [w for w in words if w.isalpha()]
-                header = " ".join(cleaned_words).strip()
+#                 header = headers.get(col, f"Column_{chr(64 + col)}")
+#                 header = str(header)
+#                 # if isinstance(header, str) and '\n' in header:
+#                 #     header = header.split('\n')[0]
+#                 #  header = str(header).strip()[:30]
+#                 words = header.split()
+#                 cleaned_words = [w for w in words if w.isalpha()]
+#                 header = " ".join(cleaned_words).strip()
 
-                date_str = col_date_map.get(col)
+#                 date_str = col_date_map.get(col)
 
-                entry = {
-                    'Category': current['name'],
-                    'Subcategory': subcat,
-                    'Date': date_str,
-                    'Metric': header,
-                    'Value': numeric_value
-                      }
+#                 entry = {
+#                     'Category': current['name'],
+#                     'Subcategory': subcat,
+#                     'Date': date_str,
+#                     'Metric': header,
+#                     'Value': numeric_value
+#                       }
 
-                if plant_name:
-                    entry['Plant'] = plant_name
-                if part_name:
-                    entry['Part Name'] = part_name
+#                 if plant_name:
+#                     entry['Plant'] = plant_name
+#                 if part_name:
+#                     entry['Part Name'] = part_name
 
-                extracted.append(entry)
+#                 extracted.append(entry)
 
 
-    return extracted
+#     return extracted
 
 
 
