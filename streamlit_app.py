@@ -7,7 +7,50 @@ from io import BytesIO
 from datetime import datetime
 import re
 from dateutil import parser
+#11
+import json
+from pathlib import Path
+from collections import defaultdict
+from rapidfuzz import process, fuzz
 
+# Load or initialize normalization map
+MAP_FILE = "normalization_map.json"
+map_path = Path(MAP_FILE)
+if map_path.exists():
+    with open(map_path, "r") as f:
+        normalization_map = json.load(f)
+else:
+    normalization_map = {}
+
+reverse_map = defaultdict(list)
+for raw, norm in normalization_map.items():
+    reverse_map[norm].append(raw)
+
+def normalize_dynamic(label, threshold=85):
+    if not isinstance(label, str) or not label.strip():
+        return label
+    clean = label.lower().strip().replace("-", "").replace("_", "")
+    if label in normalization_map:
+        return normalization_map[label]
+
+    # Try fuzzy match
+    choices = list(set(reverse_map.keys()))
+    if choices:
+        best_match, score = process.extractOne(clean, choices, scorer=fuzz.ratio)
+        if score >= threshold:
+            normalization_map[label] = best_match
+            return best_match
+
+    canonical = label.title()
+    normalization_map[label] = canonical
+    reverse_map[canonical].append(label)
+    return canonical
+
+def save_normalization_map():
+    with open(MAP_FILE, "w") as f:
+        json.dump(normalization_map, f, indent=2)
+
+#11
 
 KNOWN_PLANTS = {
     "Bielsko Biala", "Birmingham", "Blatna", "Einbeck", "Forsheda",
@@ -260,6 +303,8 @@ def find_subcategory_column(sheet, categories):
         candidates = [category_col + 1, category_col + 2, 3, 2]
         best_col = category_col + 1
         max_text_cells = 0
+        subcat = normalize_dynamic(str(subcat_cell).strip())
+
 
         for col in candidates:
             if col < 1 or col > sheet.max_column:
@@ -477,3 +522,5 @@ if uploaded_files:
             st.error(f"Error: {str(e)}")
 else:
     st.info(" Upload Excel files to get started")
+    save_normalization_map()
+
