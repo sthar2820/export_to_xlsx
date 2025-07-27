@@ -271,8 +271,10 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 if not isinstance(val, (int, float)):
                     continue
 
-                raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
+                raw_header = headers.get(col, "").strip().lower().replace('\n', ' ')
+                raw_header = ' '.join(raw_header.split())  # clean extra spaces
                 matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
+
  
 
                 if matched_key:
