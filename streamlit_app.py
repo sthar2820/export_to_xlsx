@@ -470,7 +470,8 @@ if uploaded_files:
             ws = wb.active
             st.write(f"File loaded: {ws.max_row} rows × {ws.max_column} columns")
             with st.spinner("Detecting file structure..."):
-                metric_columns, headers, stop_column_found = detect_metric_columns(ws)
+                metric_columns, headers, stop_column_found = detect_metric_columns(ws) 
+
                 category_rows = detect_categories(ws)
                 subcategory_col = find_subcategory_column(ws, category_rows)
                 plant_name, plant_row = detect_plant(ws)
