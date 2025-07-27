@@ -232,9 +232,30 @@ def find_subcategory_column(sheet, categories):
 
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
+
     if not categories:
         st.warning("No categories found")
         return []
+
+    # Optional: header normalization map
+    METRIC_NORMALIZATION = {
+        "quoted cost model": "Quoted",
+        "plex standard": "Plex",
+        "actual performance": "Actual",
+    }
+
+    # Precompute column-date mapping from header rows
+    col_date_map = {}
+    for col in metric_cols:
+        date_found = None
+        for row in range(1, 6):
+            cell_val = sheet.cell(row=row, column=col).value
+            if isinstance(cell_val, str):
+                possible_date = extract_date(cell_val)
+                if possible_date:
+                    date_found = possible_date
+                    break
+        col_date_map[col] = date_found
 
     for i in range(len(categories)):
         current = categories[i]
@@ -245,50 +266,40 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
             if not subcat_cell:
                 continue
-
-            metric = str(metric_cols).strip()
-            date_str = extract_date(metric)
-
-            # If no date yet, scan other cells in the same row to find a date
-            if not date_str:
-                for col_check in range(1, sheet.max_column + 1):
-                    val = sheet.cell(row=row, column=col_check).value
-                    if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
-                        alt_date = extract_date(val)
-                        if alt_date:
-                            date_str = alt_date
-                            break
+            subcat = str(subcat_cell).strip()
 
             for col in metric_cols:
-    val = sheet.cell(row=row, column=col).value
+                val = sheet.cell(row=row, column=col).value
+                if not isinstance(val, (int, float)):
+                    continue
 
-    # Only keep numeric values as metric
-    if isinstance(val, (int, float)) and val is not None:
-        # Extract date from the metric cell (if any)
-        cell_text = sheet.cell(row=row, column=col).value
-        date_str = None
-        if isinstance(cell_text, str):
-            date_str = extract_date(cell_text)
+                header_raw = headers.get(col, f"Column_{chr(64 + col)}").strip().lower()
+                matched_key = next((k for k in METRIC_NORMALIZATION if k in header_raw), None)
 
-        header = headers.get(col, f"Column_{chr(64 + col)}")
-        if isinstance(header, str) and '\n' in header:
-            header = header.split('\n')[0]
-        header = str(header)[:30]
+                if matched_key:
+                    header = METRIC_NORMALIZATION[matched_key]
+                else:
+                    header = header_raw.split()[0].capitalize()
 
-        entry = {
-            'Category': current['name'],
-            'Subcategory': subcat,
-            'Date': date_str,
-            'Metric': header,
-            'Value': float(val)
-        }
-        if plant_name:
-            entry['Plant'] = plant_name
-        if part_name:
-            entry['Part Name'] = part_name
+                date_str = col_date_map.get(col)
 
-        extracted.append(entry)
-   return extracted
+                entry = {
+                    'Category': current['name'],
+                    'Subcategory': subcat,
+                    'Date': date_str,
+                    'Metric': header,
+                    'Value': float(val)
+                }
+
+                if plant_name:
+                    entry['Plant'] = plant_name
+                if part_name:
+                    entry['Part Name'] = part_name
+
+                extracted.append(entry)
+
+    return extracted
+
 
 # def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
 #     extracted = []
