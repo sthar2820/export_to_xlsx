@@ -239,10 +239,12 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
     # Optional: header normalization map
     METRIC_NORMALIZATION = {
-        "quoted cost model": "Quoted",
-        "plex standard": "Plex",
-        "actual performance": "Actual",
-    }
+    "quoted cost model": "Quoted",
+    "plex standard": "Plex",
+    "actual performance": "Actual",
+    "forecasted cost": "Forecasted",
+    "demonstrated rate": "Demonstrated",
+}
 
     # Precompute column-date mapping from header rows
     col_date_map = {}
