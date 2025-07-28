@@ -437,88 +437,6 @@ def find_subcategory_column(sheet, categories):
     except:
         return 3
 
-# def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
-#     extracted = []
-
-#     if not categories:
-#         st.warning("No categories found")
-#         return []
-
-#     METRIC_NORMALIZATION = {
-#         "quoted cost model": "Quoted",
-#         "quoted": "Quoted",
-#         "plex standard": "Plex",
-#         "plex": "Plex",
-#         "actual performance": "Actual",
-#         "actual": "Actual",
-#         "forecasted cost": "Forecasted",
-#         "forecasted": "Forecasted",
-#         "demonstrated rate": "Demonstrated",
-#         "demon-strated": "Demonstrated",
-#     }
-
-#     col_date_map = {}
-#     for col in metric_cols:
-#         date_found = None
-#         for row in range(1, 6):
-#             cell_val = sheet.cell(row=row, column=col).value
-#             if isinstance(cell_val, str):
-#                 possible_date = extract_date(cell_val)
-#                 if possible_date:
-#                     date_found = possible_date
-#                     break
-#         col_date_map[col] = date_found
-
-#     for i in range(len(categories)):
-#         current = categories[i]
-#         start_row = current['row']
-#         end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
-
-#         for row in range(start_row, end_row + 1):
-#             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
-#             if not subcat_cell:
-#                 continue
-#             subcat = str(subcat_cell).strip()
-
-#             for col in metric_cols:
-#                 val = sheet.cell(row=row, column=col).value
-#                 if not isinstance(val, (int, float)):
-#                     continue
-#             raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
-#             if "cm%" in raw_header:
-#                 continue
-#             metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
-
-#                 # raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
-#                 # if "cm%" in raw_header:
-#                 #     continue
-#                 # matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
- 
-
-#                 # if matched_key:
-#                 #     metric = METRIC_NORMALIZATION[matched_key]
-#                 # else:
-#                 #     metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
-
-#                 date_str = col_date_map.get(col)
-
-#                 entry = {
-#                     'Category': current['name'],
-#                     'Subcategory': subcat,
-#                     'Date': date_str,
-#                     'Metric': metric,
-#                     'Value': float(val)
-#                 }
-#                 if plant_name:
-#                     entry['Plant'] = plant_name
-#                 if part_name:
-#                     entry['Part Name'] = part_name
-                
-
-#                 extracted.append(entry)
-
-#     return extracted
-
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
 
@@ -537,9 +455,17 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
         "forecasted": "Forecasted",
         "demonstrated rate": "Demonstrated",
         "demon-strated": "Demonstrated",
+        # Delta columns
+        "δ (quote -> actual)": "Δ Quote→Actual",
+        "δ (quote -> act)": "Δ Quote→Actual", 
+        "δ (plex std -> actual)": "Δ Plex→Actual",
+        "δ (plex std. -> act)": "Δ Plex→Actual",
+        "delta quote": "Δ Quote→Actual",
+        "delta plex": "Δ Plex→Actual",
+        "quote -> actual": "Δ Quote→Actual",
+        "plex std -> actual": "Δ Plex→Actual",
     }
 
-    # Preprocess: Extract date from headers for each metric column
     col_date_map = {}
     for col in metric_cols:
         date_found = None
@@ -552,7 +478,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     break
         col_date_map[col] = date_found
 
-    # Iterate through category rows
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
@@ -569,31 +494,12 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 if not isinstance(val, (int, float)):
                     continue
 
-                # Normalize header
-                raw_header = headers.get(col, f"column_{chr(64 + col)}").strip().lower().split('\n')[0]
-                if "cm%" in raw_header:
-                    continue
-
-                # Clean header for matching
-                cleaned_header = re.sub(r'[^a-z\s$\/→-]', '', raw_header.lower()).strip()
-
-                # Match against normalization dict
-                matched_key = next((k for k in METRIC_NORMALIZATION if k in cleaned_header), None)
+                raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
+                matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
+ 
 
                 if matched_key:
                     metric = METRIC_NORMALIZATION[matched_key]
-                elif "quoted jph" in cleaned_header:
-                    metric = "Quoted_JPH"
-                elif "quoted $" in cleaned_header or "quoted $ / piece" in cleaned_header:
-                    metric = "Quoted_$"
-                elif "actual jph" in cleaned_header:
-                    metric = "Actual_JPH"
-                elif "actual $" in cleaned_header or "actual $ / piece" in cleaned_header:
-                    metric = "Actual_$"
-                elif "plex std" in cleaned_header and "jph" in cleaned_header:
-                    metric = "Plex_JPH"
-                elif "plex std" in cleaned_header and ("$" in cleaned_header or "piece" in cleaned_header):
-                    metric = "Plex_$"
                 else:
                     metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
 
@@ -614,6 +520,101 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 extracted.append(entry)
 
     return extracted
+# def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
+#     extracted = []
+
+#     if not categories:
+#         st.warning("No categories found")
+#         return []
+
+#     METRIC_NORMALIZATION = {
+#         "quoted cost model": "Quoted",
+#         "quoted": "Quoted",
+#         "plex standard": "Plex",
+#         "plex": "Plex",
+#         "actual performance": "Actual",
+#         "actual": "Actual",
+#         "forecasted cost": "Forecasted",
+#         "forecasted": "Forecasted",
+#         "demonstrated rate": "Demonstrated",
+#         "demon-strated": "Demonstrated",
+#     }
+
+#     # Preprocess: Extract date from headers for each metric column
+#     col_date_map = {}
+#     for col in metric_cols:
+#         date_found = None
+#         for row in range(1, 6):
+#             cell_val = sheet.cell(row=row, column=col).value
+#             if isinstance(cell_val, str):
+#                 possible_date = extract_date(cell_val)
+#                 if possible_date:
+#                     date_found = possible_date
+#                     break
+#         col_date_map[col] = date_found
+
+#     # Iterate through category rows
+#     for i in range(len(categories)):
+#         current = categories[i]
+#         start_row = current['row']
+#         end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+
+#         for row in range(start_row, end_row + 1):
+#             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
+#             if not subcat_cell:
+#                 continue
+#             subcat = str(subcat_cell).strip()
+
+#             for col in metric_cols:
+#                 val = sheet.cell(row=row, column=col).value
+#                 if not isinstance(val, (int, float)):
+#                     continue
+
+#                 # Normalize header
+#                 raw_header = headers.get(col, f"column_{chr(64 + col)}").strip().lower().split('\n')[0]
+#                 if "cm%" in raw_header:
+#                     continue
+
+#                 # Clean header for matching
+#                 cleaned_header = re.sub(r'[^a-z\s$\/→-]', '', raw_header.lower()).strip()
+
+#                 # Match against normalization dict
+#                 matched_key = next((k for k in METRIC_NORMALIZATION if k in cleaned_header), None)
+
+#                 if matched_key:
+#                     metric = METRIC_NORMALIZATION[matched_key]
+#                 elif "quoted jph" in cleaned_header:
+#                     metric = "Quoted_JPH"
+#                 elif "quoted $" in cleaned_header or "quoted $ / piece" in cleaned_header:
+#                     metric = "Quoted_$"
+#                 elif "actual jph" in cleaned_header:
+#                     metric = "Actual_JPH"
+#                 elif "actual $" in cleaned_header or "actual $ / piece" in cleaned_header:
+#                     metric = "Actual_$"
+#                 elif "plex std" in cleaned_header and "jph" in cleaned_header:
+#                     metric = "Plex_JPH"
+#                 elif "plex std" in cleaned_header and ("$" in cleaned_header or "piece" in cleaned_header):
+#                     metric = "Plex_$"
+#                 else:
+#                     metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
+
+#                 date_str = col_date_map.get(col)
+
+#                 entry = {
+#                     'Category': current['name'],
+#                     'Subcategory': subcat,
+#                     'Date': date_str,
+#                     'Metric': metric,
+#                     'Value': float(val)
+#                 }
+#                 if plant_name:
+#                     entry['Plant'] = plant_name
+#                 if part_name:
+#                     entry['Part Name'] = part_name
+
+#                 extracted.append(entry)
+
+#     return extracted
 def add_delta_metrics(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or 'Metric' not in df.columns or 'Subcategory' not in df.columns:
         return df
