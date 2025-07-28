@@ -278,7 +278,7 @@ KNOWN_PLANTS = {
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
-            "smitch score", "total points possible", "quoted cost/hr"
+             "$ / Piece", "quoted cost/hr"
             # Removed "demonstrated rate" to continue past it and capture delta columns
         ]
 
