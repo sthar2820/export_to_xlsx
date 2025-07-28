@@ -491,8 +491,26 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
-                if not isinstance(val, (int, float)):
+                if val is None:
                     continue
+
+                # Handle different data types (numbers, formulas, text with numbers)
+                if isinstance(val, (int, float)):
+                    numeric_value = float(val)
+                else:
+                    # Try to extract number from text/formula
+                    val_str = str(val).strip()
+                    if not val_str:
+                        continue
+                    try:
+                        # Look for numbers in the string (handles formulas, text with numbers)
+                        import re
+                        numeric_matches = re.findall(r"[-+]?\d*\.?\d+", val_str)
+                        if not numeric_matches:
+                            continue
+                        numeric_value = float(numeric_matches[0])
+                    except (ValueError, IndexError):
+                        continue
 
                 raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
                 matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
@@ -510,7 +528,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     'Subcategory': subcat,
                     'Date': date_str,
                     'Metric': metric,
-                    'Value': float(val)
+                    'Value': numeric_value
                 }
                 if plant_name:
                     entry['Plant'] = plant_name
