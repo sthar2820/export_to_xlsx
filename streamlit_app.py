@@ -615,6 +615,54 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 extracted.append(entry)
 
     return extracted
+def add_delta_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or 'Metric' not in df.columns or 'Subcategory' not in df.columns:
+        return df
+
+    delta_records = []
+    grouped = df.groupby(['Category', 'Subcategory', 'Date'])
+
+    for (cat, subcat, date), group in grouped:
+        quoted_jph = group[group['Metric'] == 'Quoted_JPH']['Value'].values
+        plex_jph = group[group['Metric'] == 'Plex_JPH']['Value'].values
+        actual_jph = group[group['Metric'] == 'Actual_JPH']['Value'].values
+        quoted_dollar = group[group['Metric'] == 'Quoted_$']['Value'].values
+        plex_dollar = group[group['Metric'] == 'Plex_$']['Value'].values
+        actual_dollar = group[group['Metric'] == 'Actual_$']['Value'].values
+
+        if quoted_jph.size and actual_jph.size:
+            delta_jph_qa = actual_jph[0] - quoted_jph[0]
+            delta_records.append({
+                'Category': cat, 'Subcategory': subcat, 'Date': date,
+                'Metric': 'Δ (Quote → Actual) JPH', 'Value': delta_jph_qa
+            })
+
+        if quoted_dollar.size and actual_dollar.size:
+            delta_dollar_qa = actual_dollar[0] - quoted_dollar[0]
+            delta_records.append({
+                'Category': cat, 'Subcategory': subcat, 'Date': date,
+                'Metric': 'Δ (Quote → Actual) $ / Piece', 'Value': delta_dollar_qa
+            })
+
+        if plex_jph.size and actual_jph.size:
+            delta_jph_pa = actual_jph[0] - plex_jph[0]
+            delta_records.append({
+                'Category': cat, 'Subcategory': subcat, 'Date': date,
+                'Metric': 'Δ (Plex Std → Actual) JPH', 'Value': delta_jph_pa
+            })
+
+        if plex_dollar.size and actual_dollar.size:
+            delta_dollar_pa = actual_dollar[0] - plex_dollar[0]
+            delta_records.append({
+                'Category': cat, 'Subcategory': subcat, 'Date': date,
+                'Metric': 'Δ (Plex Std → Actual) $ / Piece', 'Value': delta_dollar_pa
+            })
+
+    if delta_records:
+        delta_df = pd.DataFrame(delta_records)
+        df = pd.concat([df, delta_df], ignore_index=True)
+
+    return df
 
 
 
@@ -654,6 +702,7 @@ if uploaded_files:
 
             if data:
                 df = pd.DataFrame(data)
+                df = add_delta_metrics(df)
                 st.success(f"Extracted {len(df)} records")
 
                 st.write("**Categories found:**")
