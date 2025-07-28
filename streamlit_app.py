@@ -223,6 +223,7 @@ KNOWN_PLANTS = {
     "Kalamazoo", "Saltillo", "Valley City", "Wellington"
 }
 
+
 # def detect_metric_columns(sheet, stop_at_keywords=None):
 #     if stop_at_keywords is None:
 #         stop_at_keywords = [
@@ -243,17 +244,15 @@ KNOWN_PLANTS = {
 #             for col in range(3, min(sheet.max_column + 1, 20)):
 #                 try:
 #                     cell = sheet.cell(row=search_row, column=col).value
-#                     if cell:
-#                         header_clean = ' '.join(str(cell).split())
+#                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
+#                         header_clean = ' '.join(str(cell).strip().split()).lower()
 #                         temp_headers[col] = header_clean
 #                         temp_cols.append(col)
 
-#                         header_lower = header_clean.lower()
 #                         for stop_keyword in stop_at_keywords:
-#                             if stop_keyword in header_lower:
+#                             if stop_keyword in header_clean:
 #                                 temp_stop_col = stop_keyword
 #                                 break
-
 #                         if temp_stop_col:
 #                             break
 #                 except:
@@ -269,18 +268,18 @@ KNOWN_PLANTS = {
 #         if not metric_cols:
 #             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
 #             for col in metric_cols:
-#                 headers[col] = f"Column_{chr(64 + col)}"
+#                 headers[col] = f"column_{chr(64 + col)}".lower()
 
 #     except:
 #         metric_cols = [3, 4, 5, 6]
-#         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
+#         headers = {3: "column_c", 4: "column_d", 5: "column_e", 6: "column_f"}
 
 #     return metric_cols, headers, stop_column_found
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
-            "demon-strated rate at 100%", "demonstrated rate at 100%",
-            "demon-strated rate", "demonstrated rate",
+            "smitch score", "total points possible", "quoted cost/hr"
+            # Removed "demonstrated rate" to continue past it and capture delta columns
         ]
 
     metric_cols = []
@@ -318,16 +317,16 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                     break
 
         if not metric_cols:
-            metric_cols = list(range(3, min(8, sheet.max_column + 1)))
+            metric_cols = list(range(3, min(12, sheet.max_column + 1)))  # Extended to column 12 to capture more columns
             for col in metric_cols:
                 headers[col] = f"column_{chr(64 + col)}".lower()
 
     except:
-        metric_cols = [3, 4, 5, 6]
-        headers = {3: "column_c", 4: "column_d", 5: "column_e", 6: "column_f"}
+        metric_cols = [3, 4, 5, 6, 7, 8, 9, 10, 11]  # Extended default range
+        headers = {3: "column_c", 4: "column_d", 5: "column_e", 6: "column_f", 
+                  7: "column_g", 8: "column_h", 9: "column_i", 10: "column_j", 11: "column_k"}
 
     return metric_cols, headers, stop_column_found
-
 
 def detect_categories(sheet):
     categories = []
