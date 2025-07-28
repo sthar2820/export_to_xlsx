@@ -441,9 +441,10 @@ def find_subcategory_column(sheet, categories):
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
 
-    if not categories:
-        st.warning("No categories found")
-        return []
+   if not categories:
+    st.warning("No categories found, defaulting to all rows under 'Uncategorized'")
+    categories = [{'row': 1, 'column': 1, 'letter': 'U', 'name': 'Uncategorized'}]
+
 
     METRIC_NORMALIZATION = {
         "quoted cost model": "Quoted",
