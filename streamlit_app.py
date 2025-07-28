@@ -456,14 +456,14 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
         "demonstrated rate": "Demonstrated",
         "demon-strated": "Demonstrated",
         # Delta columns
-        "δ (quote -> actual)": "Δ Quote→Actual",
-        "δ (quote -> act)": "Δ Quote→Actual", 
-        "δ (plex std -> actual)": "Δ Plex→Actual",
-        "δ (plex std. -> act)": "Δ Plex→Actual",
-        "delta quote": "Δ Quote→Actual",
-        "delta plex": "Δ Plex→Actual",
-        "quote -> actual": "Δ Quote→Actual",
-        "plex std -> actual": "Δ Plex→Actual",
+        "Δ (quote -> actual) JPH": "Quoted_JPH",
+        "Δ (quote -> act) $ / Piece": "Quoted_$", 
+        "Δ (plex std -> actual) JPH": "Plex_JPH",
+        "Δ (plex std. -> act) $ / Piece": "Plex_$",
+        # "delta quote": "Δ Quote→Actual",
+        # "delta plex": "Δ Plex→Actual",
+        # "quote -> actual": "Δ Quote→Actual",
+        # "plex std -> actual": "Δ Plex→Actual",
     }
 
     col_date_map = {}
