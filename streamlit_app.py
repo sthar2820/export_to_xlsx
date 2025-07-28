@@ -339,27 +339,33 @@ def detect_categories(sheet):
     }
 
     try:
+        seen_rows = set()
         for col in range(1, min(4, sheet.max_column + 1)):
             for row in range(1, min(sheet.max_row + 1, 50)):
                 try:
                     val = sheet.cell(row=row, column=col).value
-                    if not val:
+                    if not val or row in seen_rows:
                         continue
                     text = str(val).strip()
-                    lines = text.split('\n') if '\n' in text else [text]
-                    for line in lines:
+
+                    # Handle multiple newline styles
+                    split_lines = re.split(r'[\n\r]+', text)
+
+                    for line in split_lines:
                         line_clean = line.strip().upper()
                         if len(line_clean) == 1 and line_clean in category_map:
-                            if not any(c['letter'] == line_clean for c in categories):
-                                categories.append({
-                                    'row': row, 'column': col,
-                                    'letter': line_clean,
-                                    'name': category_map[line_clean]
-                                })
+                            categories.append({
+                                'row': row, 'column': col,
+                                'letter': line_clean,
+                                'name': category_map[line_clean]
+                            })
+                            seen_rows.add(row)
                             break
                 except:
                     continue
+
         categories.sort(key=lambda x: x['row'])
+
     except Exception as e:
         st.error(f"Error detecting categories: {e}")
         categories = []
