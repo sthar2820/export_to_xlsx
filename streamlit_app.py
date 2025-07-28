@@ -645,7 +645,9 @@ if uploaded_files:
     for file in uploaded_files:
         st.subheader(f"{file.name}")
         try:
-            wb = load_workbook(file, data_only=True)
+            # wb = load_workbook(file, data_only=True)
+            wb = load_workbook(filename=BytesIO(file.getvalue()), data_only=True)
+
             ws = wb.active
             st.write(f"File loaded: {ws.max_row} rows × {ws.max_column} columns")
             with st.spinner("Detecting file structure..."):
