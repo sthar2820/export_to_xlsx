@@ -909,13 +909,13 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
                 # date_str = col_date_map.get(col)
 
-                # entry = {
-                #     'Category': current['name'],
-                #     'Subcategory': subcat,
-                #     'Date': date_str,
-                #     'Metric': metric,
-                #     'Value': float(val)
-                # }
+                entry = {
+                    'Category': current['name'],
+                    'Subcategory': subcat,
+                    'Date': date_str,
+                    'Metric': metric,
+                    'Value': float(val)
+                }
                 if plant_name:
                     entry['Plant'] = plant_name
                 if part_name:
