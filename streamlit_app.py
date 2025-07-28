@@ -485,17 +485,21 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 val = sheet.cell(row=row, column=col).value
                 if not isinstance(val, (int, float)):
                     continue
+            raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
+            if "cm%" in raw_header:
+                continue
+            metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
 
-                raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
-                if "cm%" in raw_header:
-                    continue
-                matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
+                # raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
+                # if "cm%" in raw_header:
+                #     continue
+                # matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
  
 
-                if matched_key:
-                    metric = METRIC_NORMALIZATION[matched_key]
-                else:
-                    metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
+                # if matched_key:
+                #     metric = METRIC_NORMALIZATION[matched_key]
+                # else:
+                #     metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
 
                 date_str = col_date_map.get(col)
 
