@@ -927,7 +927,7 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 
 
 
-st.title("📊 SMITCH Excel Extractor")
+st.title(" SMITCH Excel Extractor")
 st.write("Upload SMITCH Excel files to extract structured data")
 
 uploaded_files = st.file_uploader("Choose Excel files", type=["xlsm", "xlsx"], accept_multiple_files=True)
