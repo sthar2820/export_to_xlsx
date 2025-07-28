@@ -481,7 +481,8 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else find_last_data_row(sheet, start_row)
+
 
         for row in range(start_row, end_row + 1):
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
