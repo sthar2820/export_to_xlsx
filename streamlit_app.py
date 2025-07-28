@@ -275,6 +275,24 @@ KNOWN_PLANTS = {
 #         headers = {3: "column_c", 4: "column_d", 5: "column_e", 6: "column_f"}
 
 #     return metric_cols, headers, stop_column_found
+def find_last_row_for_delta_column(sheet, headers, target_metric="Δ (plex std. -> act) $ / piece"):
+    target_col = None
+    for col, header in headers.items():
+        if target_metric.lower() in header.lower():
+            target_col = col
+            break
+
+    if not target_col:
+        return sheet.max_row  # Fallback: don't truncate
+
+    last_valid_row = None
+    for row in range(1, sheet.max_row + 1):
+        val = sheet.cell(row=row, column=target_col).value
+        if isinstance(val, (int, float)):
+            last_valid_row = row
+
+    return last_valid_row if last_valid_row else sheet.max_row
+
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
@@ -481,7 +499,11 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else find_last_data_row(sheet, start_row)
+       if i + 1 < len(categories):
+            end_row = categories[i + 1]['row'] - 1
+       else:
+            end_row = find_last_row_for_delta_column(sheet, headers)
+
 
 
         for row in range(start_row, end_row + 1):
