@@ -291,9 +291,9 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
-       if i + 1 < len(categories):
+        if i + 1 < len(categories):
             end_row = categories[i + 1]['row'] - 1
-       else:
+        else:
             end_row = find_last_row_for_delta_column(sheet, headers)
 
 
