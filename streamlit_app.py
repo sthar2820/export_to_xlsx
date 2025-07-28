@@ -297,19 +297,21 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
-                        header_clean = ' '.join(str(cell).strip().split()).lower()
+                        header_clean = ' '.join(str(cell).split())
                         temp_headers[col] = header_clean
                         temp_cols.append(col)
 
+                        header_lower = header_clean.lower()
                         for stop_keyword in stop_at_keywords:
-                            if stop_keyword in header_clean:
+                            if stop_keyword in header_lower:
                                 temp_stop_col = stop_keyword
                                 break
+
                         if temp_stop_col:
                             break
                 except:
                     continue
-
+      
             if temp_stop_col or len(temp_headers) > len(headers):
                 headers = temp_headers
                 metric_cols = temp_cols
@@ -320,11 +322,11 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
         if not metric_cols:
             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
             for col in metric_cols:
-                headers[col] = f"column_{chr(64 + col)}".lower()
+                headers[col] = f"Column_{chr(64 + col)}"
 
     except:
         metric_cols = [3, 4, 5, 6]
-        headers = {3: "column_c", 4: "column_d", 5: "column_e", 6: "column_f"}
+        headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
 
     return metric_cols, headers, stop_column_found
 
@@ -381,7 +383,7 @@ def detect_part_name(sheet, categories):
             return None
         first_category_row = categories[0]['row']
         for row in range(first_category_row - 1, 0, -1):  # search upward
-            val = sheet.cell(row=row, column=2).value  
+            val = sheet.cell(row=row, column=2).value  # Column B
             if val and isinstance(val, str):
                 val = val.strip()
                 # Return first non-empty text that isn't a single letter
@@ -438,99 +440,8 @@ def find_subcategory_column(sheet, categories):
     except:
         return 3
 
-def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
-    extracted = []
-
-   if not categories:
-    st.warning("No categories found, defaulting to all rows under 'Uncategorized'")
-    categories = [{'row': 1, 'column': 1, 'letter': 'U', 'name': 'Uncategorized'}]
-
-
-    METRIC_NORMALIZATION = {
-        "quoted cost model": "Quoted",
-        "quoted": "Quoted",
-        "plex standard": "Plex",
-        "plex": "Plex",
-        "actual performance": "Actual",
-        "actual": "Actual",
-        "forecasted cost": "Forecasted",
-        "forecasted": "Forecasted",
-        "demonstrated rate": "Demonstrated",
-        "demon-strated": "Demonstrated",
-    }
-
-    col_date_map = {}
-    for col in metric_cols:
-        date_found = None
-        for row in range(1, 6):
-            cell_val = sheet.cell(row=row, column=col).value
-            if isinstance(cell_val, str):
-                possible_date = extract_date(cell_val)
-                if possible_date:
-                    date_found = possible_date
-                    break
-        col_date_map[col] = date_found
-
-    for i in range(len(categories)):
-        current = categories[i]
-        start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
-
-        for row in range(start_row, end_row + 1):
-            subcat_cell = sheet.cell(row=row, column=subcategory_col).value
-            if not subcat_cell:
-                continue
-            subcat = str(subcat_cell).strip()
-
-            for col in metric_cols:
-                val = sheet.cell(row=row, column=col).value
-                if not isinstance(val, (int, float)):
-                    continue
-
-                raw_header = headers.get(col, f"Column_{chr(64 + col)}").strip().lower().split('\n')[0]
-                if "cm%" in raw_header:
-                    continue
-                matched_key = next((k for k in METRIC_NORMALIZATION if k in raw_header), None)
- 
-
-                if matched_key:
-                    metric = METRIC_NORMALIZATION[matched_key]
-                else:
-                    metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
-
-                date_str = col_date_map.get(col)
-
-                entry = {
-                    'Category': current['name'],
-                    'Subcategory': subcat,
-                    'Date': date_str,
-                    'Metric': metric,
-                    'Value': float(val)
-                }
-                if plant_name:
-                    entry['Plant'] = plant_name
-                if part_name:
-                    entry['Part Name'] = part_name
-                
-
-                extracted.append(entry)
-
-    return extracted
-
 # def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
 #     extracted = []
-#     col_date_map = {}
-#     for col in metric_cols:
-#         date_found = None
-#         for row in range(1, 6):  # Check top 5 rows for headers
-#             cell_val = sheet.cell(row=row, column=col).value
-#             if isinstance(cell_val, str):
-#                possible_date = extract_date(cell_val)
-#                if possible_date:
-#                   date_found = possible_date
-#                   break
-#         col_date_map[col] = date_found
-      
 #     if not categories:
 #         st.warning("No categories found")
 #         return []
@@ -544,50 +455,123 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
 #             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
 #             if not subcat_cell:
 #                 continue
-#             subcat = str(subcat_cell).strip()
-              
+
+#             metric = str(metric_cols).strip()
+#             date_str = extract_date(metric)
+
+#             # If no date yet, scan other cells in the same row to find a date
+#             if not date_str:
+#                 for col_check in range(1, sheet.max_column + 1):
+#                     val = sheet.cell(row=row, column=col_check).value
+#                     if isinstance(val, str) and re.search(r"\d{1,2}[/-]\d{2,4}", val):
+#                         alt_date = extract_date(val)
+#                         if alt_date:
+#                             date_str = alt_date
+#                             break
+
 #             for col in metric_cols:
-#                 cell_val = sheet.cell(row=row, column=col).value
-#                 cell_str = str(cell_val).strip() if cell_val is not None else ""
-#                 if not cell_str:
-#                     continue
+#     val = sheet.cell(row=row, column=col).value
 
-#                 # date_str = extract_date(cell_str)
-      
+#     # Only keep numeric values as metric
+#     if isinstance(val, (int, float)) and val is not None:
+#         # Extract date from the metric cell (if any)
+#         cell_text = sheet.cell(row=row, column=col).value
+#         date_str = None
+#         if isinstance(cell_text, str):
+#             date_str = extract_date(cell_text)
 
-#                 try:
-#                     numeric_value = float(re.findall(r"[-+]?\d*\.\d+|\d+", cell_str)[0])
-#                 except (IndexError, ValueError):
-#                     continue
+#         header = headers.get(col, f"Column_{chr(64 + col)}")
+#         if isinstance(header, str) and '\n' in header:
+#             header = header.split('\n')[0]
+#         header = str(header)[:30]
 
-#                 header = headers.get(col, f"Column_{chr(64 + col)}")
-#                 header = str(header)
-#                 # if isinstance(header, str) and '\n' in header:
-#                 #     header = header.split('\n')[0]
-#                 #  header = str(header).strip()[:30]
-#                 words = header.split()
-#                 cleaned_words = [w for w in words if w.isalpha()]
-#                 header = " ".join(cleaned_words).strip()
+#         entry = {
+#             'Category': current['name'],
+#             'Subcategory': subcat,
+#             'Date': date_str,
+#             'Metric': header,
+#             'Value': float(val)
+#         }
+#         if plant_name:
+#             entry['Plant'] = plant_name
+#         if part_name:
+#             entry['Part Name'] = part_name
 
-#                 date_str = col_date_map.get(col)
-
-#                 entry = {
-#                     'Category': current['name'],
-#                     'Subcategory': subcat,
-#                     'Date': date_str,
-#                     'Metric': header,
-#                     'Value': numeric_value
-#                       }
-
-#                 if plant_name:
-#                     entry['Plant'] = plant_name
-#                 if part_name:
-#                     entry['Part Name'] = part_name
-
-#                 extracted.append(entry)
+#         extracted.append(entry)
 
 
 #     return extracted
+def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
+    extracted = []
+    col_date_map = {}
+    for col in metric_cols:
+        date_found = None
+        for row in range(1, 6):  # Check top 5 rows for headers
+            cell_val = sheet.cell(row=row, column=col).value
+            if isinstance(cell_val, str):
+               possible_date = extract_date(cell_val)
+               if possible_date:
+                  date_found = possible_date
+                  break
+        col_date_map[col] = date_found
+      
+    if not categories:
+        st.warning("No categories found")
+        return []
+
+    for i in range(len(categories)):
+        current = categories[i]
+        start_row = current['row']
+        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+
+        for row in range(start_row, end_row + 1):
+            subcat_cell = sheet.cell(row=row, column=subcategory_col).value
+            if not subcat_cell:
+                continue
+            subcat = str(subcat_cell).strip()
+              
+            for col in metric_cols:
+                cell_val = sheet.cell(row=row, column=col).value
+                cell_str = str(cell_val).strip() if cell_val is not None else ""
+                if not cell_str:
+                    continue
+
+                # date_str = extract_date(cell_str)
+      
+
+                try:
+                    numeric_value = float(re.findall(r"[-+]?\d*\.\d+|\d+", cell_str)[0])
+                except (IndexError, ValueError):
+                    continue
+
+                header = headers.get(col, f"Column_{chr(64 + col)}")
+                header = str(header)
+                # if isinstance(header, str) and '\n' in header:
+                #     header = header.split('\n')[0]
+                #  header = str(header).strip()[:30]
+                words = header.split()
+                cleaned_words = [w for w in words if w.isalpha()]
+                header = " ".join(cleaned_words).strip()[:30]
+
+                date_str = col_date_map.get(col)
+
+                entry = {
+                    'Category': current['name'],
+                    'Subcategory': subcat,
+                    'Date': date_str,
+                    'Metric': header,
+                    'Value': numeric_value
+                      }
+
+                if plant_name:
+                    entry['Plant'] = plant_name
+                if part_name:
+                    entry['Part Name'] = part_name
+
+                extracted.append(entry)
+
+
+    return extracted
 
 
 
