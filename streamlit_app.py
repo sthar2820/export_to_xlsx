@@ -887,35 +887,35 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 # Clean header for matching
                 cleaned_header = re.sub(r'[^a-z\s$\/→-]', '', raw_header.lower()).strip()
 
-                # Match against normalization dict
-                matched_key = next((k for k in METRIC_NORMALIZATION if k in cleaned_header), None)
+                # # Match against normalization dict
+                # matched_key = next((k for k in METRIC_NORMALIZATION if k in cleaned_header), None)
 
-                if matched_key:
-                    metric = METRIC_NORMALIZATION[matched_key]
-                elif "quoted jph" in cleaned_header:
-                    metric = "Quoted_JPH"
-                elif "quoted $" in cleaned_header or "quoted $ / piece" in cleaned_header:
-                    metric = "Quoted_$"
-                elif "actual jph" in cleaned_header:
-                    metric = "Actual_JPH"
-                elif "actual $" in cleaned_header or "actual $ / piece" in cleaned_header:
-                    metric = "Actual_$"
-                elif "plex std" in cleaned_header and "jph" in cleaned_header:
-                    metric = "Plex_JPH"
-                elif "plex std" in cleaned_header and ("$" in cleaned_header or "piece" in cleaned_header):
-                    metric = "Plex_$"
-                else:
-                    metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
+                # if matched_key:
+                #     metric = METRIC_NORMALIZATION[matched_key]
+                # elif "quoted jph" in cleaned_header:
+                #     metric = "Quoted_JPH"
+                # elif "quoted $" in cleaned_header or "quoted $ / piece" in cleaned_header:
+                #     metric = "Quoted_$"
+                # elif "actual jph" in cleaned_header:
+                #     metric = "Actual_JPH"
+                # elif "actual $" in cleaned_header or "actual $ / piece" in cleaned_header:
+                #     metric = "Actual_$"
+                # elif "plex std" in cleaned_header and "jph" in cleaned_header:
+                #     metric = "Plex_JPH"
+                # elif "plex std" in cleaned_header and ("$" in cleaned_header or "piece" in cleaned_header):
+                #     metric = "Plex_$"
+                # else:
+                #     metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
 
-                date_str = col_date_map.get(col)
+                # date_str = col_date_map.get(col)
 
-                entry = {
-                    'Category': current['name'],
-                    'Subcategory': subcat,
-                    'Date': date_str,
-                    'Metric': metric,
-                    'Value': float(val)
-                }
+                # entry = {
+                #     'Category': current['name'],
+                #     'Subcategory': subcat,
+                #     'Date': date_str,
+                #     'Metric': metric,
+                #     'Value': float(val)
+                # }
                 if plant_name:
                     entry['Plant'] = plant_name
                 if part_name:
