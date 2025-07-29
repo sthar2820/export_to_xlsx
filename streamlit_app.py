@@ -905,18 +905,19 @@ def get_category_from_main(categories, target_row):
     return "Unknown"
 def extract_ebit_ohlab(sheet, plant_name=None, part_name=None, categories=None):
     """
-    Extract OH and LAB values from EBIT block, aligned to closest SMITCH category.
+    Extract only OH and LAB values from EBIT block and normalize metrics.
+    Stops at 'Actual OEE Cost/Pc at Plex Cost/Hr (Plex)'.
     """
     extracted = []
 
-    # Metric normalization
     metric_map = {
         "quoted cost/pc": "Quoted_Cost",
-        "plex standard cost/pc": "Plex_Cost",
         "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE",
+        "plex standard cost/pc": "Plex_Cost",
         "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
     }
 
+    metric_keys = list(metric_map.keys())
     subcat_targets = ["OH", "LAB"]
 
     for row in range(1, sheet.max_row + 1):
@@ -925,47 +926,50 @@ def extract_ebit_ohlab(sheet, plant_name=None, part_name=None, categories=None):
             if not isinstance(cell_val, str):
                 continue
 
-            subcat = None
-            for target in subcat_targets:
-                if target in cell_val.upper():
-                    subcat = target
-                    break
-
+            subcat = next((s for s in subcat_targets if s in cell_val.upper()), None)
             if not subcat:
                 continue
 
-            # Find category from main SMITCH blocks based on row location
+            # Match to category using main SMITCH structure
             category = get_category_from_main(categories, row)
 
-            # Look right for values
+            # Look to the right for values
             for value_col in range(col + 1, min(col + 10, sheet.max_column + 1)):
                 val = sheet.cell(row=row, column=value_col).value
-                if not isinstance(val, (int, float)):
-                    try:
-                        val = float(str(val).strip().replace("$", "").replace(",", ""))
-                    except:
-                        continue
+                if val is None:
+                    continue
 
-                # Look upward for metric header
+                try:
+                    val_float = float(str(val).strip().replace("$", "").replace(",", ""))
+                except:
+                    continue
+
+                # Look upward for header
                 metric = None
-                for hdr_row in range(row - 1, max(1, row - 5), -1):
+                for hdr_row in range(row - 1, max(1, row - 6), -1):
                     hdr_val = sheet.cell(row=hdr_row, column=value_col).value
                     if isinstance(hdr_val, str) and len(hdr_val.strip()) > 3:
                         clean_hdr = hdr_val.strip().lower()
-                        metric = metric_map.get(clean_hdr, hdr_val.strip())
+                        if clean_hdr in metric_map:
+                            metric = metric_map[clean_hdr]
                         break
 
-                if not metric:
-                    metric = f"Metric_{value_col}"
+                # Stop if metric is not in the allowed list
+                if metric not in metric_map.values():
+                    continue
 
                 extracted.append({
                     "Category": category,
                     "Subcategory": subcat,
                     "Metric": metric,
-                    "Value": val,
+                    "Value": val_float,
                     "Plant": plant_name,
                     "Part Name": part_name
                 })
+
+                # Stop extracting after the last allowed metric
+                if metric == "Plex_OEE":
+                    break
 
     return extracted
 
