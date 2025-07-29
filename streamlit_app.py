@@ -1100,12 +1100,12 @@ if uploaded_files:
                 st.metric("Stop Column", stop_column_found.title() if stop_column_found else "Auto-detected")
 
             with st.spinner("Extracting data..."):
-            data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
-            weekly_apw_data = extract_weekly_apw(ws, plant_name, part_name)
-            ebit_data = extract_ebit_ohlab(ws, plant_name, part_name, category_rows)
+                data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
+                weekly_apw_data = extract_weekly_apw(ws, plant_name, part_name)
+                ebit_data = extract_ebit_ohlab(ws, plant_name, part_name, category_rows)
 
-            data.extend(weekly_apw_data)
-            data.extend(ebit_data)
+                data.extend(weekly_apw_data)
+                data.extend(ebit_data)
             if data:
                 df = pd.DataFrame(data)
                 st.success(f"Extracted {len(df)} records")
