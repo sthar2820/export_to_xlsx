@@ -904,7 +904,8 @@ def find_subcategory_column(sheet, categories):
 #     return oh_data + lab_data
 def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
     """
-    Process each row completely to avoid interference between OH and LAB
+    Extract normalized EBIT metrics for OH and LAB subcategories from Excel sheet.
+    Supports skipping unrelated rows and continues scanning downward for both subcategories.
     """
     extracted = []
     metric_map = {
@@ -914,87 +915,79 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
         "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
     }
     allowed_metrics = set(metric_map.values())
-    
-    # Process row by row instead of nested loops
+    processed_rows = set()
+
     for row in range(1, min(sheet.max_row + 1, 100)):
-        # Check each column in this row for OH or LAB
         for col in range(1, min(sheet.max_column + 1, 30)):
             val = sheet.cell(row=row, column=col).value
-            if not isinstance(val, str):
+            if not isinstance(val, str) or row in processed_rows:
                 continue
-            
-            val_text = val.strip().upper()
-            subcategory = None
-            
-            # Identify if this cell is OH or LAB
-            if val_text == "OH" or val_text.startswith("OH ") or val_text.startswith("OH$"):
-                subcategory = "OH"
-            elif val_text == "LAB" or val_text.startswith("LAB ") or val_text.startswith("LAB$"):
-                subcategory = "LAB"
-            
-            # If we found OH or LAB, process this row completely
-            if subcategory:
+
+            val_upper = val.strip().upper()
+            if "OH" in val_upper and len(val_upper) <= 10:
+                current_subcat = "OH"
+            else:
+                continue
+
+            while row <= sheet.max_row:
+                cell_val = sheet.cell(row, column=col).value
+                if not isinstance(cell_val, str):
+                    row += 1
+                    continue
+
+                cell_text = cell_val.strip().upper()
+                if "OH" in cell_text and len(cell_text) <= 10:
+                    current_subcat = "OH"
+                elif "LAB" in cell_text and len(cell_text) <= 10:
+                    current_subcat = "LAB"
+                elif len(cell_text) <= 2 or any(kw in cell_text for kw in ["COST", "EXPENSE", "$"]):
+                    # Continue if short cell or might be relevant
+                    pass
+                elif current_subcat not in cell_text:
+                    # Skip unrelated text row
+                    row += 1
+                    continue
+
                 category = get_category_from_main(categories, row) if categories else "Unknown"
                 seen_metrics = set()
-                
-                # Look for values to the right of this OH/LAB cell
+
                 for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
                     raw_val = sheet.cell(row=row, column=c).value
                     if raw_val is None:
                         continue
-                        
-                    # Convert value
-                    value = None
                     try:
-                        if isinstance(raw_val, (int, float)):
-                            value = float(raw_val)
-                        else:
-                            clean_val = str(raw_val).strip()
-                            # Remove currency symbols
-                            for symbol in ["$", "€", "£", ","]:
-                                clean_val = clean_val.replace(symbol, "")
-                            clean_val = clean_val.strip()
-                            
-                            if clean_val:
-                                value = float(clean_val)
+                        value = float(str(raw_val).strip().replace("$", "").replace(",", ""))
                     except:
                         continue
-                    
-                    if value is None:
-                        continue
 
-                    # Search upward for header
                     metric = None
                     for rh in range(row - 1, max(0, row - 10), -1):
                         header = sheet.cell(row=rh, column=c).value
-                        if isinstance(header, str) and len(header.strip()) > 3:
+                        if isinstance(header, str):
                             header_lower = header.strip().lower()
-                            
-                            # Try to match metric
                             for k, v in metric_map.items():
                                 if k in header_lower:
                                     metric = v
                                     break
-                            
                             if metric:
                                 break
 
-                    # Add entry
                     if metric and metric in allowed_metrics and metric not in seen_metrics:
                         extracted.append({
                             "Category": category,
-                            "Subcategory": subcategory,
+                            "Subcategory": current_subcat,
                             "Metric": metric,
                             "Value": value,
                             "Plant": plant_name,
                             "Part Name": part_name
                         })
                         seen_metrics.add(metric)
-                
-                # Break after processing this OH/LAB cell in this row
-                break
-    
+
+                processed_rows.add(row)
+                row += 1
+
     return extracted
+
 def get_category_from_main(categories, target_row):
     """
     Find the closest SMITCH category above the given row.
