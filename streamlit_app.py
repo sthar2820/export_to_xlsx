@@ -907,21 +907,21 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
 
             val_upper = val.strip().upper()
             subcategories_found = []
-            
-            # Check for "OH" and "LAB" in the value
+
+            # Check if "OH" or "LAB" is in the value (allowing both to be added to subcategories_found)
             if "OH" in val_upper and len(val_upper) <= 25:
                 subcategories_found.append("OH")
             if "LAB" in val_upper and len(val_upper) <= 25:
                 subcategories_found.append("LAB")
 
-            # If no subcategories are found, continue to the next row
+            # If no subcategories are found, skip this iteration
             if not subcategories_found:
                 continue
 
             category = get_category_from_main(categories, row) if categories else "Unknown"
             seen_metrics = set()
 
-            # Look for values to match with the metrics
+            # Now look for values to match with the metrics
             for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
                 raw_val = sheet.cell(row=row, column=c).value
                 if raw_val is None:
@@ -933,7 +933,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                     continue
 
                 metric = None
-                # Search for the metric header in the rows above
+                # Check for header rows to determine the correct metric
                 for rh in range(row - 1, max(0, row - 10), -1):
                     header = sheet.cell(row=rh, column=c).value
                     if isinstance(header, str):
@@ -946,7 +946,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                             break
 
                 if metric and metric in allowed_metrics and metric not in seen_metrics:
-                    # Add entry for each found subcategory
+                    # Add data for both OH and LAB (if they were found in the subcategory check)
                     for subcat in subcategories_found:
                         extracted.append({
                             "Category": category,
@@ -959,6 +959,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                     seen_metrics.add(metric)
 
     return extracted
+
 
 def get_category_from_main(categories, target_row):
 
