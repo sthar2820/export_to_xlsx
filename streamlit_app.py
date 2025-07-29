@@ -532,59 +532,59 @@ KNOWN_PLANTS = {
     "Kalamazoo", "Saltillo", "Valley City", "Wellington"
 }
 
-# def detect_metric_columns(sheet, stop_at_keywords=None):
-#     if stop_at_keywords is None:
-#         stop_at_keywords = [
-#             "demon-strated rate at 100%", "demonstrated rate at 100%",
-#             "demon-strated rate", "demonstrated rate",
-#         ]
+def extract_weekly_apw(sheet, plant_name=None, part_name=None):
+    """
+    Extract 'Weekly APW' value and its associated metric from the EBIT LOSS block.
+    """
+    for row in range(1, 21):  # Limit to top 20 rows
+        for col in range(1, 31):  # Limit to 30 columns
+            cell = sheet.cell(row=row, column=col).value
+            if isinstance(cell, str) and "WEEKLY APW" in cell.upper():
+                # Look for numeric value to the right
+                for value_col in range(col + 1, min(col + 10, sheet.max_column + 1)):
+                    val = sheet.cell(row=row, column=value_col).value
+                    numeric_value = extract_numeric_value(val)
+                    if numeric_value is not None:
+                        metric_name = find_apw_metric_context(sheet, row, value_col)
+                        return [{
+                            "Category": "EBIT LOSS",
+                            "Subcategory": "Weekly APW",
+                            "Metric": metric_name,
+                            "Value": numeric_value,
+                            "Plant": plant_name,
+                            "Part Name": part_name
+                        }]
+    return []
 
-#     metric_cols = []
-#     headers = {}
-#     stop_column_found = None
+def extract_numeric_value(val):
+    """
+    Convert a string or number to float if possible.
+    """
+    if isinstance(val, (int, float)):
+        return float(val)
+    elif isinstance(val, str):
+        clean = re.sub(r'[^\d.\-]', '', val)
+        try:
+            return float(clean)
+        except:
+            return None
+    return None
 
-#     try:
-#         for search_row in range(1, min(6, sheet.max_row + 1)):
-#             temp_cols = []
-#             temp_headers = {}
-#             temp_stop_col = None
+def find_apw_metric_context(sheet, row, col):
+    """
+    Check nearby cells for a metric name label.
+    """
+    offsets = [(-1, 0), (-2, 0), (0, -1), (0, 1)]
+    for dr, dc in offsets:
+        r, c = row + dr, col + dc
+        if r >= 1 and c >= 1:
+            val = sheet.cell(row=r, column=c).value
+            if isinstance(val, str) and len(val.strip()) > 2:
+                text = val.strip().replace('\n', ' ').title()
+                if any(word in text.lower() for word in ["quoted", "plex", "actual"]):
+                    return text
+    return "Weekly APW Value"
 
-#             for col in range(3, min(sheet.max_column + 1, 20)):
-#                 try:
-#                     cell = sheet.cell(row=search_row, column=col).value
-#                     if cell:
-#                         header_clean = ' '.join(str(cell).split())
-#                         temp_headers[col] = header_clean
-#                         temp_cols.append(col)
-
-#                         header_lower = header_clean.lower()
-#                         for stop_keyword in stop_at_keywords:
-#                             if stop_keyword in header_lower:
-#                                 temp_stop_col = stop_keyword
-#                                 break
-
-#                         if temp_stop_col:
-#                             break
-#                 except:
-#                     continue
-
-#             if temp_stop_col or len(temp_headers) > len(headers):
-#                 headers = temp_headers
-#                 metric_cols = temp_cols
-#                 if temp_stop_col:
-#                     stop_column_found = temp_stop_col
-#                     break
-
-#         if not metric_cols:
-#             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
-#             for col in metric_cols:
-#                 headers[col] = f"Column_{chr(64 + col)}"
-
-#     except:
-#         metric_cols = [3, 4, 5, 6]
-#         headers = {3: "Column_C", 4: "Column_D", 5: "Column_E", 6: "Column_F"}
-
-#     return metric_cols, headers, stop_column_found
 def detect_metric_columns(sheet, stop_at_keywords=None):
     if stop_at_keywords is None:
         stop_at_keywords = [
@@ -960,7 +960,8 @@ if uploaded_files:
 
             with st.spinner("Extracting data..."):
                 data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
-
+                weekly_apw_data = extract_weekly_apw(ws, plant_name, part_name)
+                data.extend(weekly_apw_data)
             if data:
                 df = pd.DataFrame(data)
                 st.success(f"Extracted {len(df)} records")
