@@ -918,8 +918,8 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                 continue
 
             val_upper = val.strip().upper()
-            subcat = next((s for s in subcategories if s in val_upper and len(val_upper) <= 6), None)
-            if not subcat:
+            subcats_found = [s for s in subcategories if s in val_upper]
+            if not subcats_found:
                 continue
 
             category = get_category_from_main(categories, row) if categories else "Unknown"
@@ -949,7 +949,8 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                             break
 
                 if metric and metric in allowed_metrics and metric not in seen_metrics:
-                    extracted.append({
+                   for subcat in subcats_found:
+                        extracted.append({
                         "Category": category,
                         "Subcategory": subcat,
                         "Metric": metric,
@@ -957,7 +958,8 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                         "Plant": plant_name,
                         "Part Name": part_name
                     })
-                    seen_metrics.add(metric)
+                seen_metrics.add(metric)
+
 
     return extracted
 
