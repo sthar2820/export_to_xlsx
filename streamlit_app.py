@@ -991,19 +991,27 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
     allowed_metrics = set(metric_map.values())
     subcategories = ["OH", "LAB"]
 
-    for row in range(1, sheet.max_row + 1):
-        for col in range(1, sheet.max_column + 1):
+    # FIXED: Limit search area for performance and accuracy
+    max_row = min(sheet.max_row + 1, 100)  # Don't scan beyond row 100
+    max_col = min(sheet.max_column + 1, 35)  # Don't scan beyond column AI
+
+    for row in range(1, max_row):
+        for col in range(1, max_col):
             val = sheet.cell(row=row, column=col).value
             if not isinstance(val, str):
                 continue
 
             val_upper = val.strip().upper()
             
-            # Detect current subcategory
+            # FIXED: Better subcategory detection
             current_subcat = None
-            if val_upper == "OH" or (len(val_upper) <= 6 and "OH" in val_upper):
+            val_clean = val_upper.strip()
+            
+            # Check for OH
+            if val_clean == "OH" or val_clean == "OH%" or val_clean == "OH %":
                 current_subcat = "OH"
-            elif val_upper == "LAB" or (len(val_upper) <= 6 and "LAB" in val_upper):
+            # FIXED: Improved LAB detection
+            elif val_clean == "LAB" or val_clean == "LAB%" or val_clean == "LAB %" or val_clean == "LABOR":
                 current_subcat = "LAB"
             
             if not current_subcat:
@@ -1012,7 +1020,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             # Map to SMITCH category
             category = get_category_from_main(categories, row) if categories else "Unknown"
             
-            # Track metrics for this subcategory to avoid duplicates
+            # FIXED: Move seen_metrics inside the subcategory detection
             seen_metrics = set()
 
             # Search right for numeric values
@@ -1028,7 +1036,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                         value = float(raw_val)
                     else:
                         clean_val = str(raw_val).strip().replace("$", "").replace("€", "").replace("£", "").replace(",", "")
-                        if clean_val:
+                        if clean_val and clean_val != "":  # FIXED: Check for empty string
                             value = float(clean_val)
                 except (ValueError, TypeError):
                     continue
