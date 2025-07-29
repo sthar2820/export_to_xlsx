@@ -828,67 +828,145 @@ def find_subcategory_column(sheet, categories):
 #                 extracted.append(entry)
 
 #     return extracted
-def extract_ebit_metrics(sheet, plant_name=None, part_name=None):
+
+
+
+####Use this if another doesn't work
+
+# def extract_ebit_metrics(sheet, plant_name=None, part_name=None):
+#     """
+#     Extract EBIT Loss data related to OH and LAB subcategories with normalized metrics.
+#     """
+#     extracted = []
+#     category_map = {
+#         'C': 'Cycle Times', 'H': 'Headcount',
+#         'S': 'Sales Price', 'M': 'Material',
+#         'I': 'Investment', 'T': 'Tooling'
+#     }
+
+#     metric_normalization = {
+#         "quoted cost/pc": "Quoted_Cost",
+#         "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE",
+#         "plex standard cost/pc": "Plex_Cost",
+#         "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
+#     }
+
+#     for row in range(1, sheet.max_row + 1):
+#         for col in range(1, sheet.max_column + 1):
+#             val = sheet.cell(row=row, column=col).value
+#             if not isinstance(val, str):
+#                 continue
+#             text = val.strip().upper()
+#             subcategory = None
+#             if "OH" in text and len(text) <= 4:
+#                 subcategory = "OH"
+#             elif "LAB" in text and len(text) <= 4:
+#                 subcategory = "LAB"
+#             if not subcategory:
+#                 continue
+
+#             # Category detection (search upward in column B)
+#             category = None
+#             for r in range(row - 1, max(1, row - 20), -1):
+#                 cat_val = sheet.cell(row=r, column=2).value
+#                 if isinstance(cat_val, str):
+#                     cat_letter = cat_val.strip().upper()
+#                     if cat_letter in category_map:
+#                         category = category_map[cat_letter]
+#                         break
+
+#             # Extract numeric data to the right
+#             for c in range(col + 1, min(sheet.max_column + 1, col + 10)):
+#                 value = sheet.cell(row=row, column=c).value
+#                 if isinstance(value, (int, float)):
+#                     # Go up to find metric header
+#                     for rh in range(row - 1, 0, -1):
+#                         header = sheet.cell(row=rh, column=c).value
+#                         if isinstance(header, str) and len(header.strip()) > 5:
+#                             norm = header.strip().lower()
+#                             metric = next((v for k, v in metric_normalization.items() if k in norm), header.strip())
+#                             extracted.append({
+#                                 "Category": category or "Unknown",
+#                                 "Subcategory": subcategory,
+#                                 "Metric": metric,
+#                                 "Value": float(value),
+#                                 "Plant": plant_name,
+#                                 "Part Name": part_name
+#                             })
+#                             break
+#     return extracted
+def get_category_from_main(categories, target_row):
     """
-    Extract EBIT Loss data related to OH and LAB subcategories with normalized metrics.
+    Find the closest SMITCH category above the given row.
+    """
+    for i in range(len(categories) - 1, -1, -1):
+        if categories[i]['row'] <= target_row:
+            return categories[i]['name']
+    return "Unknown"
+def extract_ebit_ohlab(sheet, plant_name=None, part_name=None, categories=None):
+    """
+    Extract OH and LAB values from EBIT block, aligned to closest SMITCH category.
     """
     extracted = []
-    category_map = {
-        'C': 'Cycle Times', 'H': 'Headcount',
-        'S': 'Sales Price', 'M': 'Material',
-        'I': 'Investment', 'T': 'Tooling'
-    }
 
-    metric_normalization = {
+    # Metric normalization
+    metric_map = {
         "quoted cost/pc": "Quoted_Cost",
-        "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE",
         "plex standard cost/pc": "Plex_Cost",
+        "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE",
         "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
     }
 
+    subcat_targets = ["OH", "LAB"]
+
     for row in range(1, sheet.max_row + 1):
         for col in range(1, sheet.max_column + 1):
-            val = sheet.cell(row=row, column=col).value
-            if not isinstance(val, str):
-                continue
-            text = val.strip().upper()
-            subcategory = None
-            if "OH" in text and len(text) <= 4:
-                subcategory = "OH"
-            elif "LAB" in text and len(text) <= 4:
-                subcategory = "LAB"
-            if not subcategory:
+            cell_val = sheet.cell(row=row, column=col).value
+            if not isinstance(cell_val, str):
                 continue
 
-            # Category detection (search upward in column B)
-            category = None
-            for r in range(row - 1, max(1, row - 20), -1):
-                cat_val = sheet.cell(row=r, column=2).value
-                if isinstance(cat_val, str):
-                    cat_letter = cat_val.strip().upper()
-                    if cat_letter in category_map:
-                        category = category_map[cat_letter]
+            subcat = None
+            for target in subcat_targets:
+                if target in cell_val.upper():
+                    subcat = target
+                    break
+
+            if not subcat:
+                continue
+
+            # Find category from main SMITCH blocks based on row location
+            category = get_category_from_main(categories, row)
+
+            # Look right for values
+            for value_col in range(col + 1, min(col + 10, sheet.max_column + 1)):
+                val = sheet.cell(row=row, column=value_col).value
+                if not isinstance(val, (int, float)):
+                    try:
+                        val = float(str(val).strip().replace("$", "").replace(",", ""))
+                    except:
+                        continue
+
+                # Look upward for metric header
+                metric = None
+                for hdr_row in range(row - 1, max(1, row - 5), -1):
+                    hdr_val = sheet.cell(row=hdr_row, column=value_col).value
+                    if isinstance(hdr_val, str) and len(hdr_val.strip()) > 3:
+                        clean_hdr = hdr_val.strip().lower()
+                        metric = metric_map.get(clean_hdr, hdr_val.strip())
                         break
 
-            # Extract numeric data to the right
-            for c in range(col + 1, min(sheet.max_column + 1, col + 10)):
-                value = sheet.cell(row=row, column=c).value
-                if isinstance(value, (int, float)):
-                    # Go up to find metric header
-                    for rh in range(row - 1, 0, -1):
-                        header = sheet.cell(row=rh, column=c).value
-                        if isinstance(header, str) and len(header.strip()) > 5:
-                            norm = header.strip().lower()
-                            metric = next((v for k, v in metric_normalization.items() if k in norm), header.strip())
-                            extracted.append({
-                                "Category": category or "Unknown",
-                                "Subcategory": subcategory,
-                                "Metric": metric,
-                                "Value": float(value),
-                                "Plant": plant_name,
-                                "Part Name": part_name
-                            })
-                            break
+                if not metric:
+                    metric = f"Metric_{value_col}"
+
+                extracted.append({
+                    "Category": category,
+                    "Subcategory": subcat,
+                    "Metric": metric,
+                    "Value": val,
+                    "Plant": plant_name,
+                    "Part Name": part_name
+                })
+
     return extracted
 
 
@@ -1022,12 +1100,12 @@ if uploaded_files:
                 st.metric("Stop Column", stop_column_found.title() if stop_column_found else "Auto-detected")
 
             with st.spinner("Extracting data..."):
-                data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
-                weekly_apw_data = extract_weekly_apw(ws, plant_name, part_name)
-                ebit_data = extract_ebit_metrics(ws, plant_name, part_name)
+            data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
+            weekly_apw_data = extract_weekly_apw(ws, plant_name, part_name)
+            ebit_data = extract_ebit_ohlab(ws, plant_name, part_name, category_rows)
 
-                data.extend(weekly_apw_data)
-                data.extend(ebit_data)
+            data.extend(weekly_apw_data)
+            data.extend(ebit_data)
             if data:
                 df = pd.DataFrame(data)
                 st.success(f"Extracted {len(df)} records")
