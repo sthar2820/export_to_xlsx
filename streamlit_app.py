@@ -895,6 +895,74 @@ def find_subcategory_column(sheet, categories):
 #                             })
 #                             break
 #     return extracted
+
+def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
+    """
+    Extract EBIT Loss data for OH and LAB subcategories with normalized metrics.
+    Categories are matched from SMITCH blocks using row position.
+    """
+    extracted = []
+
+    # Only normalize these 4 metrics
+    metric_normalization = {
+        "quoted cost/pc": "Quoted_Cost",
+        "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE",
+        "plex standard cost/pc": "Plex_Cost",
+        "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
+    }
+
+    allowed_metrics = set(metric_normalization.values())
+    subcat_targets = ["OH", "LAB"]
+
+    for row in range(1, sheet.max_row + 1):
+        for col in range(1, sheet.max_column + 1):
+            val = sheet.cell(row=row, column=col).value
+            if not isinstance(val, str):
+                continue
+
+            subcat = next((s for s in subcat_targets if s in val.strip().upper() and len(val.strip()) <= 4), None)
+            if not subcat:
+                continue
+
+            # Match to category using SMITCH logic
+            category = get_category_from_main(categories, row) if categories else "Unknown"
+
+            # Search right for values
+            for c in range(col + 1, min(sheet.max_column + 1, col + 10)):
+                value = sheet.cell(row=row, column=c).value
+                if not isinstance(value, (int, float)):
+                    try:
+                        value = float(str(value).strip().replace("$", "").replace(",", ""))
+                    except:
+                        continue
+
+                # Search upward for metric
+                metric = None
+                for rh in range(row - 1, max(0, row - 6), -1):
+                    hdr = sheet.cell(row=rh, column=c).value
+                    if isinstance(hdr, str) and len(hdr.strip()) > 5:
+                        norm = hdr.strip().lower()
+                        metric = metric_normalization.get(norm)
+                        break
+
+                if not metric or metric not in allowed_metrics:
+                    continue
+
+                extracted.append({
+                    "Category": category,
+                    "Subcategory": subcat,
+                    "Metric": metric,
+                    "Value": value,
+                    "Plant": plant_name,
+                    "Part Name": part_name
+                })
+
+                if metric == "Plex_OEE":
+                    break  # Stop after last allowed metric
+
+    return extracted
+
+
 def get_category_from_main(categories, target_row):
     """
     Find the closest SMITCH category above the given row.
@@ -903,75 +971,6 @@ def get_category_from_main(categories, target_row):
         if categories[i]['row'] <= target_row:
             return categories[i]['name']
     return "Unknown"
-def extract_ebit_ohlab(sheet, plant_name=None, part_name=None, categories=None):
-    """
-    Extract only OH and LAB values from EBIT block and normalize metrics.
-    Stops at 'Actual OEE Cost/Pc at Plex Cost/Hr (Plex)'.
-    """
-    extracted = []
-
-    metric_map = {
-        "quoted cost/pc": "Quoted_Cost",
-        "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE",
-        "plex standard cost/pc": "Plex_Cost",
-        "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
-    }
-
-    metric_keys = list(metric_map.keys())
-    subcat_targets = ["OH", "LAB"]
-
-    for row in range(1, sheet.max_row + 1):
-        for col in range(1, sheet.max_column + 1):
-            cell_val = sheet.cell(row=row, column=col).value
-            if not isinstance(cell_val, str):
-                continue
-
-            subcat = next((s for s in subcat_targets if s in cell_val.upper()), None)
-            if not subcat:
-                continue
-
-            # Match to category using main SMITCH structure
-            category = get_category_from_main(categories, row)
-
-            # Look to the right for values
-            for value_col in range(col + 1, min(col + 10, sheet.max_column + 1)):
-                val = sheet.cell(row=row, column=value_col).value
-                if val is None:
-                    continue
-
-                try:
-                    val_float = float(str(val).strip().replace("$", "").replace(",", ""))
-                except:
-                    continue
-
-                # Look upward for header
-                metric = None
-                for hdr_row in range(row - 1, max(1, row - 6), -1):
-                    hdr_val = sheet.cell(row=hdr_row, column=value_col).value
-                    if isinstance(hdr_val, str) and len(hdr_val.strip()) > 3:
-                        clean_hdr = hdr_val.strip().lower()
-                        if clean_hdr in metric_map:
-                            metric = metric_map[clean_hdr]
-                        break
-
-                # Stop if metric is not in the allowed list
-                if metric not in metric_map.values():
-                    continue
-
-                extracted.append({
-                    "Category": category,
-                    "Subcategory": subcat,
-                    "Metric": metric,
-                    "Value": val_float,
-                    "Plant": plant_name,
-                    "Part Name": part_name
-                })
-
-                # Stop extracting after the last allowed metric
-                if metric == "Plex_OEE":
-                    break
-
-    return extracted
 
 
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
@@ -1106,7 +1105,7 @@ if uploaded_files:
             with st.spinner("Extracting data..."):
                 data = extract_smitch_data(ws, category_rows, metric_columns, headers, subcategory_col, plant_name, part_name)
                 weekly_apw_data = extract_weekly_apw(ws, plant_name, part_name)
-                ebit_data = extract_ebit_ohlab(ws, plant_name, part_name, category_rows)
+                ebit_data = extract_ebit_metrics(ws, plant_name, part_name, category_rows)
 
                 data.extend(weekly_apw_data)
                 data.extend(ebit_data)
