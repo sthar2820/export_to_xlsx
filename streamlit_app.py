@@ -536,8 +536,8 @@ def extract_weekly_apw(sheet, plant_name=None, part_name=None):
     """
     Extract 'Weekly APW' value and its associated metric from the EBIT LOSS block.
     """
-    for row in range(1, 21):  # Limit to top 20 rows
-        for col in range(1, 31):  # Limit to 30 columns
+    for row in range(1, 21):  
+        for col in range(1, 31): 
             cell = sheet.cell(row=row, column=col).value
             if isinstance(cell, str) and "WEEKLY APW" in cell.upper():
                 # Look for numeric value to the right
@@ -749,8 +749,6 @@ def find_subcategory_column(sheet, categories):
 
 
 
-
-
 # def extract_oh_metrics(sheet, plant_name=None, part_name=None, categories=None):
 #     """
 #     Extract EBIT metrics for OH subcategories only
@@ -902,11 +900,8 @@ def find_subcategory_column(sheet, categories):
 #     lab_data = extract_lab_metrics(sheet, plant_name, part_name, categories)
     
 #     return oh_data + lab_data
+
 def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
-    """
-    Extract normalized EBIT metrics for OH and LAB subcategories from Excel sheet.
-    Supports skipping unrelated rows and continues scanning downward for both subcategories.
-    """
     extracted = []
     metric_map = {
         "quoted cost/pc": "Quoted_Cost",
@@ -917,7 +912,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
     allowed_metrics = set(metric_map.values())
     processed_rows = set()
 
-    for row in range(1, min(sheet.max_row + 1, 100)):
+    for row in range(1, min(sheet.max_row + 1, 50)):
         for col in range(1, min(sheet.max_column + 1, 30)):
             val = sheet.cell(row=row, column=col).value
             if not isinstance(val, str) or row in processed_rows:
@@ -940,9 +935,12 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                     current_subcat = "OH"
                 elif "LAB" in cell_text and len(cell_text) <= 10:
                     current_subcat = "LAB"
-                elif len(cell_text) <= 2 or any(kw in cell_text for kw in ["COST", "EXPENSE", "$"]):
+                
+                 elif len(cell_text) <= 2 or any(kw in cell_text for kw in ["COST", "EXPENSE", "$"]):
                     # Continue if short cell or might be relevant
                     pass
+             
+                  
                 elif current_subcat not in cell_text:
                     # Skip unrelated text row
                     row += 1
@@ -1099,7 +1097,6 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                 extracted.append(entry)
 
     return extracted
-
 
 
 st.title(" SMITCH Excel Extractor")
