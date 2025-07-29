@@ -750,6 +750,10 @@ def find_subcategory_column(sheet, categories):
 
 
 def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
+    """
+    Extract normalized EBIT metrics for OH and LAB subcategories from Excel sheet.
+    Supports both OH and LAB in the same column.
+    """
     extracted = []
     metric_map = {
         "quoted cost/pc": "Quoted_Cost",
@@ -758,45 +762,36 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
         "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
     }
     allowed_metrics = set(metric_map.values())
-    
-    for row in range(1, min(sheet.max_row + 1, 100)):  # LIMIT FOR PERFORMANCE
+
+    for row in range(1, min(sheet.max_row + 1, 100)):  # Limit rows for performance
         for col in range(1, min(sheet.max_column + 1, 30)):
             val = sheet.cell(row=row, column=col).value
             if not isinstance(val, str):
                 continue
+
             val_upper = val.strip().upper()
-            subcategory = None
-            
-            # RELAXED LENGTH CHECK
-            if "OH" in val_upper and len(val_upper) <= 10:  # Increased from 6 to 10
-                subcategory = "OH"
-            elif "LAB" in val_upper and len(val_upper) <= 10:  # Increased from 6 to 10
-                subcategory = "LAB"
-            
-            if not subcategory:
+            subcategories_found = []
+            if "OH" in val_upper and len(val_upper) <= 10:
+                subcategories_found.append("OH")
+            if "LAB" in val_upper and len(val_upper) <= 10:
+                subcategories_found.append("LAB")
+
+            if not subcategories_found:
                 continue
 
             category = get_category_from_main(categories, row) if categories else "Unknown"
-            seen_metrics = set()  # ADDED DUPLICATE PREVENTION
-            
-            for c in range(col + 1, min(col + 15, sheet.max_column + 1)):  # INCREASED RANGE
+            seen_metrics = set()
+
+            for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
                 raw_val = sheet.cell(row=row, column=c).value
-                if raw_val is None:  # ADDED NULL CHECK
+                if raw_val is None:
                     continue
-                    
+
                 try:
-                    if isinstance(raw_val, (int, float)):  # BETTER VALUE HANDLING
-                        value = float(raw_val)
-                    else:
-                        clean_val = str(raw_val).strip().replace("$", "").replace(",", "")
-                        if clean_val:
-                            value = float(clean_val)
-                        else:
-                            continue
+                    value = float(str(raw_val).strip().replace("$", "").replace(",", ""))
                 except:
                     continue
 
-                # Search for header
                 metric = None
                 for rh in range(row - 1, max(0, row - 10), -1):
                     header = sheet.cell(row=rh, column=c).value
@@ -810,15 +805,17 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                             break
 
                 if metric and metric in allowed_metrics and metric not in seen_metrics:
-                    extracted.append({
-                        "Category": category,
-                        "Subcategory": subcategory,
-                        "Metric": metric,
-                        "Value": value,
-                        "Plant": plant_name,
-                        "Part Name": part_name
-                    })
+                    for subcat in subcategories_found:
+                        extracted.append({
+                            "Category": category,
+                            "Subcategory": subcat,
+                            "Metric": metric,
+                            "Value": value,
+                            "Plant": plant_name,
+                            "Part Name": part_name
+                        })
                     seen_metrics.add(metric)
+
     return extracted
 
 # def extract_oh_metrics(sheet, plant_name=None, part_name=None, categories=None):
