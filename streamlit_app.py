@@ -533,9 +533,6 @@ KNOWN_PLANTS = {
 }
 
 def extract_weekly_apw(sheet, plant_name=None, part_name=None):
-    """
-    Extract 'Weekly APW' value and its associated metric from the EBIT LOSS block.
-    """
     for row in range(1, 21):  
         for col in range(1, 31): 
             cell = sheet.cell(row=row, column=col).value
@@ -557,9 +554,6 @@ def extract_weekly_apw(sheet, plant_name=None, part_name=None):
     return []
 
 def extract_numeric_value(val):
-    """
-    Convert a string or number to float if possible.
-    """
     if isinstance(val, (int, float)):
         return float(val)
     elif isinstance(val, str):
@@ -571,9 +565,6 @@ def extract_numeric_value(val):
     return None
 
 def find_apw_metric_context(sheet, row, col):
-    """
-    Check nearby cells for a metric name label.
-    """
     offsets = [(-1, 0), (-2, 0), (0, -1), (0, 1)]
     for dr, dc in offsets:
         r, c = row + dr, col + dc
@@ -921,7 +912,9 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             val_upper = val.strip().upper()
             if "OH" in val_upper and len(val_upper) <= 10:
                 current_subcat = "OH"
-            else:
+            #work on this or get rid of this if this doesn't work
+            elif "LAB" in val_upper and len(val_upper) <=10:
+                current_subcat ="LAB"
                 continue
 
             while row <= sheet.max_row:
