@@ -963,6 +963,9 @@ def find_subcategory_column(sheet, categories):
 
 #     return extracted
 def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
+    """
+    Extract EBIT metrics for individual OH and LAB rows only (not totals)
+    """
     extracted = []
     metric_map = {
         "quoted cost/pc": "Quoted_Cost",
@@ -971,46 +974,52 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
         "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
     }
     allowed_metrics = set(metric_map.values())
-
-    for row in range(1, min(sheet.max_row + 1, 100)):  # Limit rows for performance
-        for col in range(1, min(sheet.max_column + 1, 30)):  # Limit columns for performance
+    
+    for row in range(1, min(sheet.max_row + 1, 100)):
+        for col in range(1, min(sheet.max_column + 1, 30)):
             val = sheet.cell(row=row, column=col).value
-            if not isinstance(val, str):  # Ensure it's a string
+            if not isinstance(val, str):
+                continue
+            
+            val_clean = val.strip().upper()
+            subcategory = None
+            
+            # PRECISE MATCHING - only individual OH/LAB rows, not totals
+            if val_clean.startswith("OH $") or val_clean == "OH":
+                subcategory = "OH"
+            elif val_clean.startswith("LAB $") or val_clean == "LAB":
+                subcategory = "LAB"
+            # Skip "VAR OH TOTAL PER PIECE" and "LABOR TOTAL PER PIECE"
+            
+            if not subcategory:
                 continue
 
-            val_upper = val.strip().upper()  # Case-insensitive matching
-            subcategories_found = []
-
-            # Check if "OH" or "LAB" is in the value, ignoring case and length restrictions
-            if "OH" in val_upper:
-                subcategories_found.append("OH")
-            if "LAB" in val_upper:
-                subcategories_found.append("LAB")
-
-            # If no subcategories are found, skip this iteration
-            if not subcategories_found:
-                continue
-
-            # Get category based on row if available, else set as "Unknown"
             category = get_category_from_main(categories, row) if categories else "Unknown"
             seen_metrics = set()
-
-            # Now look for values to match with the metrics
+            
+            # Process values to the right of this OH/LAB cell
             for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
                 raw_val = sheet.cell(row=row, column=c).value
                 if raw_val is None:
                     continue
-
+                
                 try:
-                    value = float(str(raw_val).strip().replace("$", "").replace(",", ""))
-                except ValueError:
-                    continue  # If conversion to float fails, skip this value
+                    if isinstance(raw_val, (int, float)):
+                        value = float(raw_val)
+                    else:
+                        clean_val = str(raw_val).strip().replace("$", "").replace(",", "")
+                        if clean_val:
+                            value = float(clean_val)
+                        else:
+                            continue
+                except:
+                    continue
 
+                # Search upward for metric header
                 metric = None
-                # Check the rows above for headers that match the metrics
                 for rh in range(row - 1, max(0, row - 10), -1):
                     header = sheet.cell(row=rh, column=c).value
-                    if isinstance(header, str):
+                    if isinstance(header, str) and len(header.strip()) > 3:
                         header_lower = header.strip().lower()
                         for k, v in metric_map.items():
                             if k in header_lower:
@@ -1020,18 +1029,16 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                             break
 
                 if metric and metric in allowed_metrics and metric not in seen_metrics:
-                    # Add data for both "OH" and "LAB" (if they were found in the subcategory check)
-                    for subcat in subcategories_found:
-                        extracted.append({
-                            "Category": category,
-                            "Subcategory": subcat,
-                            "Metric": metric,
-                            "Value": value,
-                            "Plant": plant_name,
-                            "Part Name": part_name
-                        })
+                    extracted.append({
+                        "Category": category,
+                        "Subcategory": subcategory,
+                        "Metric": metric,
+                        "Value": value,
+                        "Plant": plant_name,
+                        "Part Name": part_name
+                    })
                     seen_metrics.add(metric)
-
+    
     return extracted
 
 
