@@ -752,7 +752,7 @@ def find_subcategory_column(sheet, categories):
 def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
     """
     Extract normalized EBIT metrics for OH and LAB subcategories from Excel sheet.
-    Supports both OH and LAB in the same column.
+    OH uses dynamic header scan; LAB uses fixed header rows (10 & 11).
     """
     extracted = []
     metric_map = {
@@ -792,20 +792,36 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                 except:
                     continue
 
-                metric = None
-                for rh in range(row - 1, max(0, row - 10), -1):
-                    header = sheet.cell(row=rh, column=c).value
-                    if isinstance(header, str):
-                        header_lower = header.strip().lower()
-                        for k, v in metric_map.items():
-                            if k in header_lower:
-                                metric = v
+                for subcat in subcategories_found:
+                    if subcat == "OH":
+                        # Use dynamic scan upward for OH
+                        header = None
+                        for rh in range(row - 1, max(0, row - 10), -1):
+                            header = sheet.cell(row=rh, column=c).value
+                            if isinstance(header, str):
+                                header_lower = header.strip().lower()
+                                for k, v in metric_map.items():
+                                    if k in header_lower:
+                                        metric = v
+                                        break
+                                if metric:
+                                    break
+                    elif subcat == "LAB":
+                        # Use fixed rows for LAB (assume headers are in row 10 or 11)
+                        header = None
+                        metric = None
+                        for rh in [10, 11]:
+                            header = sheet.cell(row=rh, column=c).value
+                            if isinstance(header, str):
+                                header_lower = header.strip().lower()
+                                for k, v in metric_map.items():
+                                    if k in header_lower:
+                                        metric = v
+                                        break
+                            if metric:
                                 break
-                        if metric:
-                            break
 
-                if metric and metric in allowed_metrics and metric not in seen_metrics:
-                    for subcat in subcategories_found:
+                    if header and metric and metric in allowed_metrics and metric not in seen_metrics:
                         extracted.append({
                             "Category": category,
                             "Subcategory": subcat,
@@ -814,7 +830,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                             "Plant": plant_name,
                             "Part Name": part_name
                         })
-                    seen_metrics.add(metric)
+                        seen_metrics.add(metric)
 
     return extracted
 
