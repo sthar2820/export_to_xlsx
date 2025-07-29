@@ -972,21 +972,21 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
 #     lab_data = extract_lab_metrics(sheet, plant_name, part_name, categories)
     
 #     return oh_data + lab_data
-# def get_category_from_main(categories, target_row):
-#     """
-#     Find the closest SMITCH category above the given row.
-#     """
-#     if not categories:
-#         return "Unknown"
+def get_category_from_main(categories, target_row):
+    """
+    Find the closest SMITCH category above the given row.
+    """
+    if not categories:
+        return "Unknown"
     
-#     # Find the category with the highest row number that's still <= target_row
-#     best_category = None
-#     for category in categories:
-#         if category['row'] <= target_row:
-#             if best_category is None or category['row'] > best_category['row']:
-#                 best_category = category
+    # Find the category with the highest row number that's still <= target_row
+    best_category = None
+    for category in categories:
+        if category['row'] <= target_row:
+            if best_category is None or category['row'] > best_category['row']:
+                best_category = category
     
-#     return best_category['name'] if best_category else "Unknown"
+    return best_category['name'] if best_category else "Unknown"
 
 def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col, plant_name=None, part_name=None):
     extracted = []
