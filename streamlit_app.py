@@ -889,9 +889,7 @@ def find_subcategory_column(sheet, categories):
     
 #     return oh_data + lab_data
 
-""" 
-   Run this if nothing works 
-"""
+
 # def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
 #     extracted = []
 #     metric_map = {
@@ -984,12 +982,10 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             val_clean = val.strip().upper()
             subcategory = None
             
-            # PRECISE MATCHING - only individual OH/LAB rows, not totals
             if val_clean.startswith("OH $") or val_clean == "OH":
                 subcategory = "OH"
             elif val_clean.startswith("LAB $") or val_clean == "LAB":
                 subcategory = "LAB"
-            # Skip "VAR OH TOTAL PER PIECE" and "LABOR TOTAL PER PIECE"
             
             if not subcategory:
                 continue
