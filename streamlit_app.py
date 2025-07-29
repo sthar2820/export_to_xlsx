@@ -821,9 +821,9 @@ def find_subcategory_column(sheet, categories):
 #                     seen_metrics.add(metric)
 #     return extracted
 
-def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
+def extract_oh_metrics(sheet, plant_name=None, part_name=None, categories=None):
     """
-    Fixed EBIT extraction - LAB should be found in same area as OH
+    Extract EBIT metrics for OH subcategories only
     """
     extracted = []
     metric_map = {
@@ -834,7 +834,6 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
     }
     allowed_metrics = set(metric_map.values())
     
-    # Keep same search area as before since OH works
     for row in range(1, min(sheet.max_row + 1, 100)):
         for col in range(1, min(sheet.max_column + 1, 30)):
             val = sheet.cell(row=row, column=col).value
@@ -844,28 +843,13 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             val_upper = val.strip().upper()
             subcategory = None
             
-            # IMPROVED DETECTION LOGIC
-            # Check for OH first (this works, so keep it the same)
+            # Only look for OH
             if "OH" in val_upper and len(val_upper) <= 10:
                 subcategory = "OH"
-            
-            # FIXED LAB DETECTION - be more specific about what we accept
-            elif "LAB" in val_upper:
-                # Accept LAB with various common suffixes
-                val_clean = val_upper.strip()
-                if (val_clean == "LAB" or 
-                    val_clean == "LAB%" or 
-                    val_clean == "LAB %" or
-                    val_clean.startswith("LAB ") or
-                    val_clean.endswith(" LAB") or
-                    "LABOR" in val_clean):
-                    subcategory = "LAB"
-                    print(f"DEBUG: Found LAB at row {row}, col {col}: '{val}' -> '{val_clean}'")
             
             if not subcategory:
                 continue
 
-            # Rest of the logic stays the same
             category = get_category_from_main(categories, row) if categories else "Unknown"
             seen_metrics = set()
             
@@ -909,9 +893,93 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                         "Part Name": part_name
                     })
                     seen_metrics.add(metric)
-                    print(f"DEBUG: Extracted {subcategory} - {metric}: {value}")
     
     return extracted
+
+def extract_lab_metrics(sheet, plant_name=None, part_name=None, categories=None):
+    """
+    Extract EBIT metrics for LAB subcategories only
+    """
+    extracted = []
+    metric_map = {
+        "quoted cost/pc": "Quoted_Cost",
+        "actual oee cost/pc at plex cost/hr (quote)": "Actual_OEE", 
+        "plex standard cost/pc": "Plex_Cost",
+        "actual oee cost/pc at plex cost/hr (plex)": "Plex_OEE"
+    }
+    allowed_metrics = set(metric_map.values())
+    
+    for row in range(1, min(sheet.max_row + 1, 100)):
+        for col in range(1, min(sheet.max_column + 1, 30)):
+            val = sheet.cell(row=row, column=col).value
+            if not isinstance(val, str):
+                continue
+            
+            val_upper = val.strip().upper()
+            subcategory = None
+            
+            # Only look for LAB
+            if "LAB" in val_upper and len(val_upper) <= 10:
+                subcategory = "LAB"
+            
+            if not subcategory:
+                continue
+
+            category = get_category_from_main(categories, row) if categories else "Unknown"
+            seen_metrics = set()
+            
+            for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
+                raw_val = sheet.cell(row=row, column=c).value
+                if raw_val is None:
+                    continue
+                    
+                try:
+                    if isinstance(raw_val, (int, float)):
+                        value = float(raw_val)
+                    else:
+                        clean_val = str(raw_val).strip().replace("$", "").replace("€", "").replace("£", "").replace(",", "")
+                        if clean_val:
+                            value = float(clean_val)
+                        else:
+                            continue
+                except:
+                    continue
+
+                # Search for header
+                metric = None
+                for rh in range(row - 1, max(0, row - 10), -1):
+                    header = sheet.cell(row=rh, column=c).value
+                    if isinstance(header, str):
+                        header_lower = header.strip().lower()
+                        for k, v in metric_map.items():
+                            if k in header_lower:
+                                metric = v
+                                break
+                        if metric:
+                            break
+
+                if metric and metric in allowed_metrics and metric not in seen_metrics:
+                    extracted.append({
+                        "Category": category,
+                        "Subcategory": subcategory,
+                        "Metric": metric,
+                        "Value": value,
+                        "Plant": plant_name,
+                        "Part Name": part_name
+                    })
+                    seen_metrics.add(metric)
+    
+    return extracted
+
+# Combined function that calls both
+def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
+    """
+    Extract both OH and LAB metrics using separate functions
+    """
+    oh_data = extract_oh_metrics(sheet, plant_name, part_name, categories)
+    lab_data = extract_lab_metrics(sheet, plant_name, part_name, categories)
+    
+    return oh_data + lab_data
 def get_category_from_main(categories, target_row):
     """
     Find the closest SMITCH category above the given row.
