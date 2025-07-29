@@ -912,9 +912,9 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             val_upper = val.strip().upper()
             subcategories_found = []
             if "OH" in val_upper and len(val_upper) <= 25:
-                subcategories_found.append("OH")
+                subcategories_found = "OH"
             if "LAB" in val_upper and len(val_upper) <= 25:
-                subcategories_found.append("LAB")
+                subcategories_found = "LAB"
 
             if not subcategories_found:
                 continue
