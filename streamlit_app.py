@@ -912,9 +912,6 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             val_upper = val.strip().upper()
             if "OH" in val_upper and len(val_upper) <= 10:
                 current_subcat = "OH"
-            # #work on this or get rid of this if this doesn't work
-            # elif "LAB" in val_upper and len(val_upper) <=10:
-            #     current_subcat ="LAB"
                 continue
 
             while row <= sheet.max_row:
@@ -980,9 +977,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
     return extracted
 
 def get_category_from_main(categories, target_row):
-    """
-    Find the closest SMITCH category above the given row.
-    """
+
     if not categories:
         return "Unknown"
     
