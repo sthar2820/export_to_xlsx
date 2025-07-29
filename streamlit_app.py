@@ -929,7 +929,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
                 elif "LAB" in cell_text and len(cell_text) <= 10:
                     current_subcat = "LAB"
                 
-                 elif len(cell_text) <= 2 or any(kw in cell_text for kw in ["COST", "EXPENSE", "$"]):
+                elif len(cell_text) <= 2 or any(kw in cell_text for kw in ["COST", "EXPENSE", "$"]):
                     # Continue if short cell or might be relevant
                     pass
              
