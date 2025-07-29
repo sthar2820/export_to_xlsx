@@ -904,7 +904,7 @@ def find_subcategory_column(sheet, categories):
 #     return oh_data + lab_data
 def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None):
     """
-    Bulletproof EBIT extraction - treats OH and LAB identically
+    Process each row completely to avoid interference between OH and LAB
     """
     extracted = []
     metric_map = {
@@ -915,7 +915,9 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
     }
     allowed_metrics = set(metric_map.values())
     
+    # Process row by row instead of nested loops
     for row in range(1, min(sheet.max_row + 1, 100)):
+        # Check each column in this row for OH or LAB
         for col in range(1, min(sheet.max_column + 1, 30)):
             val = sheet.cell(row=row, column=col).value
             if not isinstance(val, str):
@@ -924,72 +926,73 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
             val_text = val.strip().upper()
             subcategory = None
             
-            # IDENTICAL logic for both OH and LAB
-            if val_text.startswith("OH"):
+            # Identify if this cell is OH or LAB
+            if val_text == "OH" or val_text.startswith("OH ") or val_text.startswith("OH$"):
                 subcategory = "OH"
-            elif val_text.startswith("LAB"):
+            elif val_text == "LAB" or val_text.startswith("LAB ") or val_text.startswith("LAB$"):
                 subcategory = "LAB"
             
-            if not subcategory:
-                continue
-
-            category = get_category_from_main(categories, row) if categories else "Unknown"
-            seen_metrics = set()
-            
-            # Look for values to the right
-            for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
-                raw_val = sheet.cell(row=row, column=c).value
-                if raw_val is None:
-                    continue
-                    
-                # Convert value
-                value = None
-                try:
-                    if isinstance(raw_val, (int, float)):
-                        value = float(raw_val)
-                    else:
-                        # Clean string value
-                        clean_val = str(raw_val).strip()
-                        # Remove currency symbols
-                        for symbol in ["$", "€", "£", ","]:
-                            clean_val = clean_val.replace(symbol, "")
-                        clean_val = clean_val.strip()
-                        
-                        if clean_val:
-                            value = float(clean_val)
-                except:
-                    continue
+            # If we found OH or LAB, process this row completely
+            if subcategory:
+                category = get_category_from_main(categories, row) if categories else "Unknown"
+                seen_metrics = set()
                 
-                if value is None:
-                    continue
-
-                # Search upward for header
-                metric = None
-                for rh in range(row - 1, max(0, row - 10), -1):
-                    header = sheet.cell(row=rh, column=c).value
-                    if isinstance(header, str) and len(header.strip()) > 3:
-                        header_lower = header.strip().lower()
+                # Look for values to the right of this OH/LAB cell
+                for c in range(col + 1, min(col + 15, sheet.max_column + 1)):
+                    raw_val = sheet.cell(row=row, column=c).value
+                    if raw_val is None:
+                        continue
                         
-                        # Try to match metric
-                        for k, v in metric_map.items():
-                            if k in header_lower:
-                                metric = v
+                    # Convert value
+                    value = None
+                    try:
+                        if isinstance(raw_val, (int, float)):
+                            value = float(raw_val)
+                        else:
+                            clean_val = str(raw_val).strip()
+                            # Remove currency symbols
+                            for symbol in ["$", "€", "£", ","]:
+                                clean_val = clean_val.replace(symbol, "")
+                            clean_val = clean_val.strip()
+                            
+                            if clean_val:
+                                value = float(clean_val)
+                    except:
+                        continue
+                    
+                    if value is None:
+                        continue
+
+                    # Search upward for header
+                    metric = None
+                    for rh in range(row - 1, max(0, row - 10), -1):
+                        header = sheet.cell(row=rh, column=c).value
+                        if isinstance(header, str) and len(header.strip()) > 3:
+                            header_lower = header.strip().lower()
+                            
+                            # Try to match metric
+                            for k, v in metric_map.items():
+                                if k in header_lower:
+                                    metric = v
+                                    break
+                            
+                            if metric:
                                 break
-                        
-                        if metric:
-                            break
 
-                # Add entry
-                if metric and metric in allowed_metrics and metric not in seen_metrics:
-                    extracted.append({
-                        "Category": category,
-                        "Subcategory": subcategory,
-                        "Metric": metric,
-                        "Value": value,
-                        "Plant": plant_name,
-                        "Part Name": part_name
-                    })
-                    seen_metrics.add(metric)
+                    # Add entry
+                    if metric and metric in allowed_metrics and metric not in seen_metrics:
+                        extracted.append({
+                            "Category": category,
+                            "Subcategory": subcategory,
+                            "Metric": metric,
+                            "Value": value,
+                            "Plant": plant_name,
+                            "Part Name": part_name
+                        })
+                        seen_metrics.add(metric)
+                
+                # Break after processing this OH/LAB cell in this row
+                break
     
     return extracted
 def get_category_from_main(categories, target_row):
