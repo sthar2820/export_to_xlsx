@@ -704,7 +704,7 @@ def extract_date(text):
             elif re.match(r"\d{1,2}/\d{2}$", match):  # MM/YY
                 dt = datetime.strptime(match, "%m/%y")
             elif re.match(r"\d{4}/\d{1,2}/\d{1,2}$", match):  # YYYY/MM/DD
-                dt = datetime.strptime(match, "%y/%m/%d")
+                dt = datetime.strptime(match, "%Y/%M/%D")
             else:
                 continue
             return dt.strftime("%Y-%m-%d")
