@@ -1129,7 +1129,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
 
             # Search up for metric
             metric = None
-            for rh in range(row - 1, max(0, row - 15), -1):
+            for rh in range(row - 1, max(0, row - 30), -1):
                 header = sheet.cell(row=rh, column=c).value
                 if isinstance(header, str):
                     lower = header.strip().lower()
