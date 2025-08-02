@@ -696,7 +696,7 @@ def extract_date(text):
     if not isinstance(text, str):
         return None
 
-    matches = re.findall(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
+    matches = re.findall(r"\b\d{4}[/-]\d{1,2}(?:[/-]\d{1,2})?\b", text)
     for match in matches:
         try:
             # if re.match(r"\d{1,2}/\d{4}$", match):  # MM/YYYY
