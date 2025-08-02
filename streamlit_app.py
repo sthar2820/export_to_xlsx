@@ -699,11 +699,11 @@ def extract_date(text):
     matches = re.findall(r"\b\d{1,2}[/-]\d{2,4}(?:[/-]\d{2,4})?\b", text)
     for match in matches:
         try:
-            if re.match(r"\d{1,2}/\d{4}$", match):  # MM/YYYY
-                dt = datetime.strptime(match, "%m/%Y")
-            elif re.match(r"\d{1,2}/\d{2}$", match):  # MM/YY
-                dt = datetime.strptime(match, "%m/%y")
-            elif re.match(r"\d{4}/\d{1,2}/\d{1,2}$", match):  # YYYY/MM/DD
+            # if re.match(r"\d{1,2}/\d{4}$", match):  # MM/YYYY
+            #     dt = datetime.strptime(match, "%m/%Y")
+            # elif re.match(r"\d{1,2}/\d{2}$", match):  # MM/YY
+            #     dt = datetime.strptime(match, "%m/%y")
+            if re.match(r"\d{4}/\d{1,2}/\d{1,2}$", match):  # YYYY/MM/DD
                 dt = datetime.strptime(match, "%Y/%M/%D")
             else:
                 continue
