@@ -1079,7 +1079,7 @@ def extract_ebit_metrics(sheet, plant_name=None, part_name=None, categories=None
 
     # Step 1: Locate OH start row and EBIT column
     for row in range(1, sheet.max_row + 1):
-        for col in range(1, min(sheet.max_column + 1, 30)):
+        for col in range(1, min(sheet.max_column + 1, 50)):
             val = sheet.cell(row=row, column=col).value
             if isinstance(val, str) and val.strip().upper().startswith("OH"):
                 start_row = row
