@@ -70,14 +70,16 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
     metric_cols = []
     headers = {}
     stop_column_found = None
+    delta_columns_found = False
 
     try:
         for search_row in range(1, min(6, sheet.max_row + 1)):
             temp_cols = []
             temp_headers = {}
             temp_stop_col = None
+            temp_delta_found = False
 
-            for col in range(3, min(sheet.max_column + 1, 20)):
+            for col in range(3, min(sheet.max_column + 1, 30)):  # Extended range to capture delta columns
                 try:
                     cell = sheet.cell(row=search_row, column=col).value
                     if cell and isinstance(cell, str) and len(cell.strip()) > 1:
@@ -85,21 +87,36 @@ def detect_metric_columns(sheet, stop_at_keywords=None):
                         temp_headers[col] = header_clean
                         temp_cols.append(col)
 
+                        # Check for delta columns
+                        if "δ" in header_clean or "delta" in header_clean:
+                            temp_delta_found = True
+
+                        # Only stop after finding delta columns
                         for stop_keyword in stop_at_keywords:
-                            if stop_keyword in header_clean:
+                            if stop_keyword in header_clean and temp_delta_found:
                                 temp_stop_col = stop_keyword
                                 break
-                        if temp_stop_col:
-                            break
                 except:
                     continue
 
             if temp_stop_col or len(temp_headers) > len(headers):
                 headers = temp_headers
                 metric_cols = temp_cols
+                delta_columns_found = temp_delta_found
                 if temp_stop_col:
                     stop_column_found = temp_stop_col
                     break
+
+        # If no delta columns found, use extended range to look for them
+        if not delta_columns_found:
+            for col in range(max(metric_cols) + 1 if metric_cols else 8, min(sheet.max_column + 1, 25)):
+                for row in range(1, 6):
+                    cell = sheet.cell(row=row, column=col).value
+                    if cell and isinstance(cell, str):
+                        header_clean = ' '.join(str(cell).strip().split()).lower()
+                        if "δ" in header_clean or "delta" in header_clean:
+                            headers[col] = header_clean
+                            metric_cols.append(col)
 
         if not metric_cols:
             metric_cols = list(range(3, min(8, sheet.max_column + 1)))
@@ -689,13 +706,35 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
     for i in range(len(categories)):
         current = categories[i]
         start_row = current['row']
-        end_row = categories[i + 1]['row'] - 1 if i + 1 < len(categories) else min(start_row + 25, sheet.max_row)
+        
+        # Determine end row more precisely
+        if i + 1 < len(categories):
+            end_row = categories[i + 1]['row'] - 1
+        else:
+            # For the last category (usually Headcount), be more conservative
+            # Look for actual data rows instead of going too far
+            end_row = start_row + 15  # Limit to 15 rows after category start
+            for check_row in range(start_row + 1, min(start_row + 25, sheet.max_row + 1)):
+                subcat_check = sheet.cell(row=check_row, column=subcategory_col).value
+                if not subcat_check or str(subcat_check).strip() == "":
+                    # If we hit multiple empty rows, stop earlier
+                    empty_count = 0
+                    for empty_check in range(check_row, min(check_row + 3, sheet.max_row + 1)):
+                        if not sheet.cell(row=empty_check, column=subcategory_col).value:
+                            empty_count += 1
+                    if empty_count >= 2:  # Two consecutive empty rows
+                        end_row = check_row - 1
+                        break
 
         for row in range(start_row, end_row + 1):
             subcat_cell = sheet.cell(row=row, column=subcategory_col).value
             if not subcat_cell:
                 continue
             subcat = str(subcat_cell).strip()
+            
+            # Skip empty subcategories or CM% related rows
+            if not subcat or subcat == "" or "cm%" in subcat.lower():
+                continue
 
             for col in metric_cols:
                 val = sheet.cell(row=row, column=col).value
@@ -727,8 +766,23 @@ def extract_smitch_data(sheet, categories, metric_cols, headers, subcategory_col
                     metric = "Plex_JPH"
                 elif "plex std" in cleaned_header and ("$" in cleaned_header or "piece" in cleaned_header):
                     metric = "Plex_$"
+                elif "δ" in cleaned_header or "delta" in cleaned_header:
+                    if "quote" in cleaned_header and "actual" in cleaned_header and "jph" in cleaned_header:
+                        metric = "Delta_Quote_Actual_JPH"
+                    elif "quote" in cleaned_header and ("act" in cleaned_header or "actual" in cleaned_header) and ("$" in cleaned_header or "piece" in cleaned_header):
+                        metric = "Delta_Quote_Actual_$"
+                    elif "plex" in cleaned_header and "actual" in cleaned_header and "jph" in cleaned_header:
+                        metric = "Delta_Plex_Actual_JPH"
+                    elif "plex" in cleaned_header and ("act" in cleaned_header or "actual" in cleaned_header) and ("$" in cleaned_header or "piece" in cleaned_header):
+                        metric = "Delta_Plex_Actual_$"
+                    else:
+                        metric = "Delta"
                 else:
                     metric = raw_header.split()[0].capitalize() if raw_header else f"Col_{col}"
+
+                # Special rule: JPH delta metrics only for Cycle Times and Headcount
+                if metric in ["Delta_Quote_Actual_JPH", "Delta_Plex_Actual_JPH"] and current['name'] not in ['Cycle Times', 'Headcount']:
+                    continue
 
                 date_str = col_date_map.get(col)
 
